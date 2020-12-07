@@ -59,15 +59,6 @@ echo "GCC_BIN  = $GCC_BIN"
 MKDIR $FRAMEWORK_PATH/src
 MKDIR $FRAMEWORK_PATH/opt
 MKDIR $FRAMEWORK_PATH/build
-MKDIR $FRAMEWORK_PATH/device
-
-if [ ! -f $FRAMEWORK_PATH/device/makeDeviceCapability.mk ]
-then
-  cp makeDeviceCapability.mk $FRAMEWORK_PATH/device/
-  cp deviceArch.cu $FRAMEWORK_PATH/device/
-  cp deviceCapability.cu $FRAMEWORK_PATH/device/
-fi
-cd $FRAMEWORK_PATH
 
 # Check make
 CUR_CMAKE=`cmake --version | head -n1 | awk '{print $3}'`
@@ -89,6 +80,7 @@ then
 fi
 CUR_CUDA=`nvcc --version | grep release | \
          awk -F', ' '{print $3}' | sed 's/^.//'`
+echo
 echo "cuda version $CUR_CUDA found"
 
 # Build DeviceCapability
@@ -96,8 +88,8 @@ cd device
 make -f makeDeviceCapability.mk
 ARCH=`./deviceArch`
 CAPABILITY=`./deviceCapability`
-echo "ARCH=$ARCH"
-echo "CAPABILITY=$CAPABILITY"
+echo "CUDA ARCH=$ARCH"
+echo "CUDA COMPUTE CAPABILITY=$CAPABILITY"
 cd $FRAMEWORK_PATH
 
 if [ "$INSTALL_GCC" = true ]
