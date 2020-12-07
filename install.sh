@@ -10,9 +10,11 @@ function MKDIR() {
   fi
 }
 
+PRINT=false
+
 MAKE_JOBS=4
 while [ "$1" != "" ]; do
-  case $1 in  
+  case $1 in
       --prefix )           shift
                            PREFIX="$1"
                            ;;
@@ -29,7 +31,7 @@ while [ "$1" != "" ]; do
   shift
 done
 
-if [ ! -z "$PREFIX" ] 
+if [ ! -z "$PREFIX" ]
 then
   FRAMEWORK_PATH=$PREFIX
 else
@@ -43,25 +45,29 @@ GCC_BUILD=$FRAMEWORK_PATH/build/gcc
 LLVM_BIN=$FRAMEWORK_PATH/opt/llvm
 GCC_BIN=$FRAMEWORK_PATH/opt/gcc
 
-if [ "$PRINT" = true ]
-then
-  echo "LLVM_SRC = $LLVM_SRC"
-  echo "GCC_SRC  = $GCC_SRC"
-  echo "LLVM_BIN = $LLVM_BIN"
-  echo "GCC_BIN  = $GCC_BIN"
-fi
+echo "LLVM_SRC = $LLVM_SRC"
+echo "GCC_SRC  = $GCC_SRC"
+echo "LLVM_BIN = $LLVM_BIN"
+echo "GCC_BIN  = $GCC_BIN"
 
+if [ ! -f $FRAMEWORK_PATH/device/makeDeviceCapability.mk ]
+then
+  MKDIR $FRAMEWORK_PATH/device
+  cp makeDeviceCapability.mk $FRAMEWORK_PATH/device/
+  cp deviceArch.cu $FRAMEWORK_PATH/device/
+  cp deviceCapability.cu $FRAMEWORK_PATH/device/
+fi
 cd $FRAMEWORK_PATH
+
 MKDIR src
 MKDIR opt
 MKDIR build
 
 if [ "$INSTALL_GCC" = true ]
 then
-  if [ "$PRINT" = true ]
+  echo "$GCC_SRC/gcc-7.3.0/configure --prefix=$GCC_BIN --enable-shared  --enable-languages=c,c++,lto --enable-__cxa_atexit --enable-threads=posix --enable-checking=release --disable-nls --disable-multilib --disable-bootstrap --disable-libssp --disable-libgomp --disable-libsanitizer --disable-libstdcxx-pch --with-system-zlib"
+  if [ "$PRINT" = false ]
   then
-    echo "$GCC_SRC/gcc-7.3.0/configure --prefix=$GCC_BIN --enable-shared  --enable-languages=c,c++,lto --enable-__cxa_atexit --enable-threads=posix --enable-checking=release --disable-nls --disable-multilib --disable-bootstrap --disable-libssp --disable-libgomp --disable-libsanitizer --disable-libstdcxx-pch --with-system-zlib"
-  else
     cd $GCC_SRC
     if [ ! -f gcc-7.3.0.tar.xz ]
     then
@@ -91,14 +97,14 @@ then
       sed -i "s/^set root .*/set root ${GCC_BIN//\//\\/}/" $GCC_SRC/module/gcc-7.3.0 && \
       export MODULEPATH=$GCC_SRC/module:$MODULEPATH && \
       module unload gcc && module load gcc-7.3.0
+    cd $FRAMEWORK_PATH
   fi
-  cd $FRAMEWORK_PATH
 fi
 
 # Check make
 CUR_CMAKE=`cmake --version | head -n1 | awk '{print $3}'`
 REQ_CMAKE=3.13.4
-if [ "$(printf '%s\n' "$CUR_CMAKE" "$REQ_CMAKE" | sort -V | head -n1)" = "$REQ_CMAKE" ]; 
+if [ "$(printf '%s\n' "$CUR_CMAKE" "$REQ_CMAKE" | sort -V | head -n1)" = "$REQ_CMAKE" ];
 then
   echo "cmake version $CUR_CMAKE found"
 else
@@ -108,7 +114,7 @@ fi
 
 # Check CUDA
 if ! type nvcc > /dev/null 2>&1
-then 
+then
   echo "CUDA not installed"
   exit
 fi
@@ -116,9 +122,11 @@ CUR_CUDA=`nvcc --version | grep release | awk -F', ' '{print $3}' | sed 's/^.//'
 echo "cuda version $CUR_CUDA found"
 
 # Build DeviceCapability
+cd device
 make -f makeDeviceCapability.mk
 ARCH=`./deviceArch`
 CAPABILITY=`./deviceCapability`
+cd ..
 
 echo "ARCH=$ARCH"
 echo "CAPABILITY=$CAPABILITY"
@@ -135,49 +143,55 @@ fi
 GCC_TOOLCHAIN=`which gcc | sed 's/\/bin\/gcc$//'`
 
 # Clone Project
-if [ "$PRINT" = true ]
-then 
-  echo "git clone --depth 1 https://github.com/llvm/llvm-project.git $LLVM_SRC"
-else
+echo
+echo "git clone --depth 1 https://github.com/llvm/llvm-project.git $LLVM_SRC"
+if [ "$PRINT" = false ]
+then
   [[ -d $LLVM_SRC ]] || git clone --depth 1 https://github.com/llvm/llvm-project.git $LLVM_SRC
 fi
 
-if [ "$PRINT" = true ]
-then 
-  echo "cmake -S $LLVM_SRC/llvm -B $CLANG_BUILD -DCMAKE_INSTALL_PREFIX=$LLVM_BIN -DCMAKE_BUILD_TYPE=\"Release\" -DLLVM_TARGETS_TO_BUILD=\"X86;NVPTX;PowerPC\" -DCMAKE_EXE_LINKER_FLAGS=\"-s\" -DCMAKE_C_COMPILER=$GCC_TOOLCHAIN/bin/gcc -DCMAKE_CXX_COMPILER=$GCC_TOOLCHAIN/bin/g++ -DGCC_INSTALL_PREFIX=$GCC_TOOLCHAIN -DLLVM_ENABLE_PROJECTS=\"clang\" -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc"
-else
-  cmake -S $LLVM_SRC/llvm \
-        -B $CLANG_BUILD \
-        -DCMAKE_INSTALL_PREFIX=$LLVM_BIN \
-        -DCMAKE_BUILD_TYPE="Release" \
-        -DLLVM_TARGETS_TO_BUILD="X86;NVPTX;PowerPC" \
-        -DCMAKE_EXE_LINKER_FLAGS="-s" \
-        -DCMAKE_C_COMPILER=$GCC_TOOLCHAIN/bin/gcc \
-        -DCMAKE_CXX_COMPILER=$GCC_TOOLCHAIN/bin/g++ \
-        -DGCC_INSTALL_PREFIX=$GCC_TOOLCHAIN \
-        -DCLANG_OPENMP_NVPTX_DEFAULT_ARCH=$ARCH \
-        -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \
-        -DLLVM_ENABLE_PROJECTS="clang" \
-        -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc
+echo
+echo "cmake -S $LLVM_SRC/llvm -B $CLANG_BUILD -DCMAKE_INSTALL_PREFIX=$LLVM_BIN -DCMAKE_BUILD_TYPE=\"Release\" -DLLVM_TARGETS_TO_BUILD=\"X86;NVPTX\" -DCMAKE_EXE_LINKER_FLAGS=\"-s\" -DCMAKE_C_COMPILER=$GCC_TOOLCHAIN/bin/gcc -DCMAKE_CXX_COMPILER=$GCC_TOOLCHAIN/bin/g++ -DGCC_INSTALL_PREFIX=$GCC_TOOLCHAIN -DCLANG_OPENMP_NVPTX_DEFAULT_ARCH=$ARCH -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY -DLLVM_ENABLE_PROJECTS=\"clang\" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc"
+echo "make -C $CLANG_BUILD -j$MAKE_JOBS install"
+if [ "$PRINT" = false ]
+then
+  if [ ! -f "$CLANG_BUILD/Makefile" ]
+  then
+    cmake -S $LLVM_SRC/llvm \
+          -B $CLANG_BUILD \
+          -DCMAKE_INSTALL_PREFIX=$LLVM_BIN \
+          -DCMAKE_BUILD_TYPE="Release" \
+          -DLLVM_TARGETS_TO_BUILD="X86;NVPTX" \
+          -DCMAKE_EXE_LINKER_FLAGS="-s" \
+          -DCMAKE_C_COMPILER=$GCC_TOOLCHAIN/bin/gcc \
+          -DCMAKE_CXX_COMPILER=$GCC_TOOLCHAIN/bin/g++ \
+          -DGCC_INSTALL_PREFIX=$GCC_TOOLCHAIN \
+          -DCLANG_OPENMP_NVPTX_DEFAULT_ARCH=$ARCH \
+          -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \
+          -DLLVM_ENABLE_PROJECTS="clang" \
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+          -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc
+  fi
   make -C $CLANG_BUILD -j $MAKE_JOBS install
 fi
 
-if [ "$PRINT" = true ]
-then 
-  echo "cmake -S $LLVM_SRC/openmp -B $OPENMP_BUILD -DCMAKE_INSTALL_PREFIX=$LLVM_BIN -DCMAKE_BUILD_TYPE=\"Release\" -DCMAKE_EXE_LINKER_FLAGS=\"-s\" -DLLVM_TARGETS_TO_BUILD=\"X86;NVPTX;PowerPC\" -DCMAKE_C_COMPILER=$LLVM_BIN/bin/clang -DCMAKE_CXX_COMPILER=$LLVM_BIN/bin/clang++ -DLIBOMP_INSTALL_ALIASES=OFF -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc -DCMAKE_C_FLAGS=\"-I$GCC_TOOLCHAIN/include\" -DCMAKE_CXX_FLAGS=\"-stdlib++-isystem $GCC_TOOLCHAIN/include/c++/$CUR_GCC -cxx-isystem $GCC_TOOLCHAIN/include/c++/$CUR_GCC/powerpc64le-unknown-linux-gnu -I$GCC_TOOLCHAIN/include\""
-else
-  cmake -S $LLVM_SRC/openmp \
-        -B $OPENMP_BUILD \
-        -DCMAKE_INSTALL_PREFIX=$LLVM_BIN \
-        -DCMAKE_BUILD_TYPE="Release" \
-        -DCMAKE_EXE_LINKER_FLAGS="-s" \
-        -DCMAKE_C_COMPILER=$LLVM_BIN/bin/clang \
-        -DCMAKE_CXX_COMPILER=$LLVM_BIN/bin/clang++ \
-        -DLIBOMP_INSTALL_ALIASES=OFF \
-        -DCLANG_OPENMP_NVPTX_DEFAULT_ARCH=$ARCH \
-        -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \
-        -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc \
-        -DCMAKE_C_FLAGS="-I$GCC_TOOLCHAIN/include" \
-        -DCMAKE_CXX_FLAGS="-stdlib++-isystem $GCC_TOOLCHAIN/include/c++/$CUR_GCC -cxx-isystem $GCC_TOOLCHAIN/include/c++/$CUR_GCC/powerpc64le-unknown-linux-gnu -I$GCC_TOOLCHAIN/include" 
+echo
+echo "cmake -S $LLVM_SRC/openmp -B $OPENMP_BUILD -DCMAKE_INSTALL_PREFIX=$LLVM_BIN -DCMAKE_BUILD_TYPE=\"Release\" -DCMAKE_EXE_LINKER_FLAGS=\"-s\" -DCMAKE_C_COMPILER=$LLVM_BIN/bin/clang -DCMAKE_CXX_COMPILER=$LLVM_BIN/bin/clang++ -DLIBOMP_INSTALL_ALIASES=OFF -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc"
+echo "make -C $OPENMP_BUILD -j$MAKE_JOBS install"
+if [ "$PRINT" = false ]
+then
+  if [ ! -f "$OPENMP_BUILD/Makefile" ]
+  then
+    cmake -S $LLVM_SRC/openmp \
+          -B $OPENMP_BUILD \
+          -DCMAKE_INSTALL_PREFIX=$LLVM_BIN \
+          -DCMAKE_BUILD_TYPE="Release" \
+          -DCMAKE_EXE_LINKER_FLAGS="-s" \
+          -DCMAKE_C_COMPILER=$LLVM_BIN/bin/clang \
+          -DCMAKE_CXX_COMPILER=$LLVM_BIN/bin/clang++ \
+          -DLIBOMP_INSTALL_ALIASES=OFF \
+          -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \
+          -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc
+  fi
   make -C $OPENMP_BUILD -j $MAKE_JOBS install
 fi
