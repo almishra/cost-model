@@ -180,6 +180,9 @@ then
   fi
 fi
 
+# Copy the InstructionCount project
+cp -r InstructionCount $LLVM_SRC/clang/example/
+
 echo
 echo "Building Clang ..."
 echo "cmake -S $LLVM_SRC/llvm \\"
@@ -195,6 +198,7 @@ echo "      -DCLANG_OPENMP_NVPTX_DEFAULT_ARCH=$ARCH \\"
 echo "      -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \\"
 echo "      -DLLVM_ENABLE_PROJECTS=\"clang\" \\"
 echo "      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \\"
+echo "      -DCLANG_BUILD_EXAMPLES=1 \\"
 echo "      -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc"
 echo "make -C $CLANG_BUILD -j$MAKE_JOBS install"
 if [ "$PRINT" = false ]
@@ -214,6 +218,7 @@ then
           -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \
           -DLLVM_ENABLE_PROJECTS="clang" \
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+          -DCLANG_BUILD_EXAMPLES=1 \
           -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc
   fi
   make -C $CLANG_BUILD -j $MAKE_JOBS install
