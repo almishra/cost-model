@@ -17,8 +17,9 @@ function MKDIR() {
 }
 
 PRINT=false
-
+MAIN_DIR=$PWD
 MAKE_JOBS=4
+
 while [ "$1" != "" ]; do
   case $1 in
       --prefix )           shift
@@ -43,6 +44,8 @@ then
 else
   FRAMEWORK_PATH=$PWD
 fi
+
+# Initialize path variables
 LLVM_SRC=$FRAMEWORK_PATH/src/llvm
 GCC_SRC=$FRAMEWORK_PATH/src/gcc
 CLANG_BUILD=$FRAMEWORK_PATH/build/clang
@@ -180,8 +183,8 @@ then
   fi
 fi
 
-# Copy the InstructionCount project
-cp -r InstructionCount $LLVM_SRC/clang/example/
+# Copy the InstructionCount project to clang example directory
+cp -r $MAIN_DIR/InstructionCount $LLVM_SRC/clang/example/
 
 echo
 echo "Building Clang ..."
@@ -254,3 +257,4 @@ then
   fi
   make -C $OPENMP_BUILD -j $MAKE_JOBS install
 fi
+
