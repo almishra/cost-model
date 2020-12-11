@@ -104,42 +104,54 @@ gen_func() {
   echo "" >> $file
 }
 
-#for (( i=5; i<=10; i+=5 ))
-#do
-#  for(( j=5; j<=10; j+=5 ))
-#  do
-#    sed "s/#define ROW 2/#define ROW ${i}/g" matrix.c > matrix_collapse_${i}_${j}.c
-#    sed -i "s/#define COL 2/#define COL ${j}/g" matrix_collapse_${i}_${j}.c
-#  done
-#done
-name="matrix.c"
-ROW1=10
-COL1=10
-ROW2=10
-COL2=5
-name="matrix_${ROW1}_${COL1}_${ROW2}_${COL2}"
-name1="${name}_collapse"
-name2="${name}_target"
-name3="${name}_target_teams"
-gen_func "${name}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp parallel for"
-gen_func "${name1}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp parallel for collapse(2)"
-gen_func "${name2}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
-         "#pragma omp target" "#pragma omp parallel for"
-gen_func "${name3}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
-         "#pragma omp target teams" "#pragma omp parallel for"
-gen_func "matrix_target_teams_distribute.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
-         "#pragma omp target teams distribute"
-gen_func "matrix_target_teams_inner_distribute.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
-         "#pragma omp target teams" "NA" "#pragma omp distribute"
-gen_func "matrix_target_teams_distribute_inner_parallel.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
-         "#pragma omp target teams distribute" "NA" "#pragma omp parallel for"
-gen_func "matrix_target_teams_inner_distribute_parallel_for.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
-         "#pragma omp target teams" "NA" "#pragma omp distribute parallel for"
-gen_func "matrix_target_teams_distribute_parallel_for.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
-         "#pragma omp target teams distribute parallel for"
-gen_func "matrix_target_collapse.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
-         "#pragma omp target" "#pragma omp parallel for collapse(2)"
-gen_func "matrix_target_teams_collapse.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
-         "#pragma omp target teams" "#pragma omp parallel for collapse(2)"
-gen_func "matrix_target_teams_distribute_parallel_for_collapse.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
-         "#pragma omp target teams distribute parallel for collapse(2)"
+I=( 5 500 );
+J=( 5 100 15 );
+K=( 10 500 );
+for i in ${I[@]}
+do
+  for j in ${J[@]}
+  do
+    for k in ${K[@]}
+    do
+      echo "matrix_${i}_${j}_${j}_${k}";
+      ROW1=$i
+      COL1=$j
+      ROW2=$j
+      COL2=$k
+      name="matrix_${ROW1}_${COL1}_${ROW2}_${COL2}"
+      name_collapse="${name}_collapse"
+      name_target="${name}_target"
+      name_target_teams="${name_target}_teams"
+      name_target_teams_distribute="${name_target_teams}_distribute"
+      name_target_teams_inner_distribute="${name_target_teams}_inner_distribute"
+      name_target_teams_distribute_inner_parallel="${name_target_teams_distribute}_inner_parallel"
+      name_target_teams_inner_distribute_parallel_for="${name_target_teams_inner_distribute}_parallel_for"
+      name_target_teams_distribute_parallel_for="${name_target_teams_distribute}_parallel_for"
+      name_target_collapse="${name_target}_collapse"
+      name_target_teams_collapse="${name_target_teams}_collapse"
+      name_target_teams_distribute_parallel_for_collapse="${name_target_teams_distribute_parallel_for}_collapse"
+      gen_func "${name}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp parallel for"
+      gen_func "${name_collapse}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp parallel for collapse(2)"
+      gen_func "${name_target}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target" "#pragma omp parallel for"
+      gen_func "${name_target_teams}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target teams" "#pragma omp parallel for"
+      gen_func "${name_target_teams_distribute}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target teams distribute"
+      gen_func "${name_target_teams_inner_distribute}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target teams" "NA" "#pragma omp distribute"
+      gen_func "${name_target_teams_inner_distribute}_inner_parallel.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target teams distribute" "NA" "#pragma omp parallel for"
+      gen_func "${name_target_teams_inner_distribute_parallel_for}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target teams" "NA" "#pragma omp distribute parallel for"
+      gen_func "${name_target_teams_distribute_parallel_for}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target teams distribute parallel for"
+      gen_func "${name_target_collapse}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target" "#pragma omp parallel for collapse(2)"
+      gen_func "${name_target_teams_collapse}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target teams" "#pragma omp parallel for collapse(2)"
+      gen_func "${name_target_teams_distribute_parallel_for_collapse}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target teams distribute parallel for collapse(2)"
+    done
+  done
+done
