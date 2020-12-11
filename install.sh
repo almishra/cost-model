@@ -184,7 +184,8 @@ then
 fi
 
 # Copy the InstructionCount project to clang example directory
-cp -r $MAIN_DIR/InstructionCount $LLVM_SRC/clang/example/
+cp -r $MAIN_DIR/InstructionCount $LLVM_SRC/clang/examples/InstructionCount
+echo "add_subdirectory(InstructionCount)" >> $LLVM_SRC/clang/examples/CMakeLists.txt
 
 echo
 echo "Building Clang ..."
