@@ -18,7 +18,12 @@ gen_func() {
       then
         if [[ $# -gt 8 ]]
         then
-          PRAGMA3=""
+          if [[ $8 = "NA" ]]
+          then
+            PRAGMA3=""
+          else
+            PRAGMA3=$8
+          fi
           PRAGMA4=$9
         else
           PRAGMA3=$8
@@ -27,86 +32,76 @@ gen_func() {
     fi
   fi
   
-  shift
-  echo "#include <stdio.h>" > $file
-  echo "#include <stdlib.h>" >> $file
-  echo "#include <sys/time.h>" >> $file
-  echo "" >> $file
-  echo "int *init(int R, int C)" >> $file
-  echo "{" >> $file
-  echo "  int *A = (int*) malloc(sizeof(int)*R*C);" >> $file
-  echo "" >> $file
-  echo "  for(int i=0; i<R; i++)" >> $file
-  echo "    for(int j=0; j<C; j++)" >> $file
-  echo "      A[i*C+j] = random() % 10;" >> $file
-  echo "" >> $file
-  echo "  return A;" >> $file
-  echo "}" >> $file
-  echo "" >> $file
-  echo "#ifdef DEBUG" >> $file
-  echo "void print(int R, int C, int *A)" >> $file
-  echo "{" >> $file
-  echo "  for(int i=0; i<R; i++) {" >> $file
-  echo "    for(int j=0; j<C; j++)" >> $file
-  echo "      printf(\"%4d \", A[i*C+j]);" >> $file
-  echo "    printf(\"\\n\");" >> $file
-  echo "  }" >> $file
-  echo "}" >> $file
-  echo "#endif" >> $file
-  echo "" >> $file
-  echo "int main()" >> $file
-  echo "{" >> $file
-  echo "  int *A = init($ROW1, $COL1);" >> $file
-  echo "  int *B = init($ROW2, $COL2);" >> $file
-  echo "  int *C = (int*) malloc(sizeof(int)*$ROW1*$COL2);" >> $file
-  echo "" >> $file
-  echo "  struct timeval start, end;" >> $file
-  echo "  gettimeofday(&start, NULL);" >> $file
-  if [ -n "$PRAGMA1" ]
-  then
-    echo "$PRAGMA1" >> $file
-  fi
-  if [ -n "$PRAGMA2" ]
-  then
-    echo "$PRAGMA2" >> $file
-  fi
-  if [ -n "$PRAGMA3" ]
-  then
-    echo "$PRAGMA3" >> $file
-  fi
-  echo "  for(int i=0; i<$ROW1; i++) {" >> $file
-  if [ -n "$PRAGMA4" ]
-  then
-    echo "$PRAGMA4" >> $file
-  fi
-  echo "    for(int j=0; j<$COL2; j++) {" >> $file
-  echo "      C[i*$COL2+j] = 0;" >> $file
-  echo "      for(int k=0; k<$COL1; k++)" >> $file
-  echo "        C[i*$COL2+j] += A[i*$COL1+k] * B[k*$COL2+j];" >> $file
-  echo "    }" >> $file
-  echo "  }" >> $file
-  echo "  gettimeofday(&end, NULL);" >> $file
-  echo "  unsigned delta = (end.tv_sec  - start.tv_sec) * 1000000u + " >> $file
-  echo "                   end.tv_usec - start.tv_usec;" >> $file
-  echo "  printf(\"%d\\n\", delta);" >> $file
-  echo "" >> $file
-  echo "#ifdef DEBUG" >> $file
-  echo "  printf(\"Matrix A\\n\");" >> $file
-  echo "  print($ROW1, $COL1, A);" >> $file
-  echo "  printf(\"Matrix B\\n\");" >> $file
-  echo "  print($ROW2, $COL2, B);" >> $file
-  echo "  printf(\"Matrix C\\n\");" >> $file
-  echo "  print($ROW1, $COL2, C);" >> $file
-  echo "#endif" >> $file
-  echo "" >> $file
-  echo "  return 0;" >> $file
-  echo "}" >> $file
-  echo "" >> $file
+  cat << EOF > $file
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>
+
+int *init(int R, int C)
+{
+  int *A = (int*) malloc(sizeof(int)*R*C);
+
+#pragma omp parallel for
+  for(int i=0; i<R; i++)
+    for(int j=0; j<C; j++)
+      A[i*C+j] = random() % 10;
+
+  return A;
 }
 
-I=( 5 500 );
-J=( 5 100 15 );
-K=( 10 500 );
+#ifdef DEBUG
+void print(int R, int C, int *A)
+{
+  for(int i=0; i<R; i++) {
+    for(int j=0; j<C; j++)
+      printf("%4d ", A[i*C+j]);
+    printf("\n");
+  }
+}
+#endif
+
+int main()
+{
+  int *A = init($ROW1, $COL1);
+  int *B = init($ROW2, $COL2);
+  int *C = (int*) malloc(sizeof(int)*$ROW1*$COL2);
+
+  struct timeval start, end;
+  gettimeofday(&start, NULL);
+$PRAGMA1
+$PRAGMA2
+$PRAGMA3
+  for(int i=0; i<$ROW1; i++) {
+$PRAGMA4
+    for(int j=0; j<$COL2; j++) {
+      C[i*$COL2+j] = 0;
+      for(int k=0; k<$COL1; k++)
+        C[i*$COL2+j] += A[i*$COL1+k] * B[k*$COL2+j];
+    }
+  }
+  gettimeofday(&end, NULL);
+  unsigned delta = (end.tv_sec  - start.tv_sec) * 1000000u + 
+                   end.tv_usec - start.tv_usec;
+  printf("%d\n", delta);
+
+#ifdef DEBUG
+  printf("Matrix A\n");
+  print($ROW1, $COL1, A);
+  printf("Matrix B\n");
+  print($ROW2, $COL2, B);
+  printf("Matrix C\n");
+  print($ROW1, $COL2, C);
+#endif
+
+  return 0;
+}
+
+EOF
+}
+
+I=( 5000 ); #5 500 );
+J=( 10000 ); #5 100 15 );
+K=( 5000 ); #10 500 );
 for i in ${I[@]}
 do
   for j in ${J[@]}
@@ -125,6 +120,7 @@ do
       name_target_teams_distribute="${name_target_teams}_distribute"
       name_target_teams_inner_distribute="${name_target_teams}_inner_distribute"
       name_target_teams_distribute_inner_parallel="${name_target_teams_distribute}_inner_parallel"
+      name_target_teams_distribute_inner_parallel_for="${name_target_teams_distribute_inner_parallel}_for"
       name_target_teams_inner_distribute_parallel_for="${name_target_teams_inner_distribute}_parallel_for"
       name_target_teams_distribute_parallel_for="${name_target_teams_distribute}_parallel_for"
       name_target_collapse="${name_target}_collapse"
@@ -140,8 +136,10 @@ do
                "#pragma omp target teams distribute"
       gen_func "${name_target_teams_inner_distribute}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
                "#pragma omp target teams" "NA" "#pragma omp distribute"
-      gen_func "${name_target_teams_inner_distribute}_inner_parallel.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
-               "#pragma omp target teams distribute" "NA" "#pragma omp parallel for"
+      gen_func "${name_target_teams_distribute_inner_parallel}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target teams distribute" "NA" "#pragma omp parallel"
+      gen_func "${name_target_teams_distribute_inner_parallel_for}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
+               "#pragma omp target" "#pragma omp teams distribute" "#pragma omp parallel for"
       gen_func "${name_target_teams_inner_distribute_parallel_for}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
                "#pragma omp target teams" "NA" "#pragma omp distribute parallel for"
       gen_func "${name_target_teams_distribute_parallel_for}.c" $ROW1 $COL1 $ROW2 $COL2 "#pragma omp target data map(to:A[0:$ROW1*$COL1], B[0:$ROW2*$COL2]) map(C[0:$ROW1*$COL2])" \
