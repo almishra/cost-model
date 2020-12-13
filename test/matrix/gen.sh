@@ -37,9 +37,9 @@ gen_func() {
 #include <stdlib.h>
 #include <sys/time.h>
 
-int *init(int R, int C)
+double *init(int R, int C)
 {
-  int *A = (int*) malloc(sizeof(int)*R*C);
+double *A = (double*) malloc(sizeof(double)*R*C);
 
 #pragma omp parallel for
   for(int i=0; i<R; i++)
@@ -54,7 +54,7 @@ void print(int R, int C, int *A)
 {
   for(int i=0; i<R; i++) {
     for(int j=0; j<C; j++)
-      printf("%4d ", A[i*C+j]);
+      printf("%4.0lf ", A[i*C+j]);
     printf("\n");
   }
 }
@@ -62,9 +62,9 @@ void print(int R, int C, int *A)
 
 int main()
 {
-  int *A = init($ROW1, $COL1);
-  int *B = init($ROW2, $COL2);
-  int *C = (int*) malloc(sizeof(int)*$ROW1*$COL2);
+  double *A = init($ROW1, $COL1);
+  double *B = init($ROW2, $COL2);
+  double *C = (double*) malloc(sizeof(double)*$ROW1*$COL2);
 
   struct timeval start, end;
   gettimeofday(&start, NULL);
