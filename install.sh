@@ -180,12 +180,11 @@ then
   if [ ! -d $LLVM_SRC ]
   then
     git clone --depth 1 https://github.com/llvm/llvm-project.git $LLVM_SRC
+    # Copy the InstructionCount project to clang example directory
+    cp -r $MAIN_DIR/InstructionCount $LLVM_SRC/clang/examples/InstructionCount
+    echo "add_subdirectory(InstructionCount)" >> $LLVM_SRC/clang/examples/CMakeLists.txt
   fi
 fi
-
-# Copy the InstructionCount project to clang example directory
-cp -r $MAIN_DIR/InstructionCount $LLVM_SRC/clang/examples/InstructionCount
-echo "add_subdirectory(InstructionCount)" >> $LLVM_SRC/clang/examples/CMakeLists.txt
 
 echo
 echo "Building Clang ..."
