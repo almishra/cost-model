@@ -2,12 +2,15 @@ CC=nvc
 CXX=nvc++
 CFLAGS=-mp=gpu
 SRCS = $(wildcard *.c)
-PROGS = $(patsubst %.c,%,$(SRCS))
+PROGS = $(patsubst %.c,%.out,$(SRCS))
 
 all: $(PROGS)
 
-%: %.c
+%.out: %.c
 	$(CC) $(CFLAGS)  -o $@ $<
+
+clean-src: clean
+	$(RM) $(SRCS)
 
 clean:
 	$(RM) $(PROGS)

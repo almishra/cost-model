@@ -1,6 +1,8 @@
-all: deviceArch deviceCapability
+.PHONY: all
 
-check: 
+all: deviceArch deviceCapability
+	@:
+
 deviceArch: deviceArch.cu
 	nvcc deviceArch.cu -o deviceArch
 
