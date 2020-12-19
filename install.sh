@@ -1,3 +1,4 @@
+#!/bin/bash
 ###############################################################################
 #                                                                             #
 #                                                                             #
@@ -16,6 +17,84 @@ function MKDIR() {
   fi
 }
 
+function CREATE_MODULE_FILE() {
+  if [[ $# -lt 4 ]]
+  then
+    echo "Wrong number of arguments in CREATE_MODULE_FILE"
+    exit
+  fi
+
+  HELP=""
+  WHATIS=""
+  if [[ $# -gt 4 ]]
+  then
+    HELP="proc ModulesHelp { } {
+  puts stderr \\
+\"$5\"
+}"
+    if [[ $# -gt 4 ]]
+    then
+      WHATIS="module-whatis \"$6\""
+    fi
+  fi
+
+  cat << EOF > $MAIN_DIR/modulefile/$2
+#%Module -*- tcl -*-
+##
+## modulefile
+##
+
+$HELP
+$WHATIS
+
+proc prepend-include-path { dir } {
+    prepend-path CMAKE_INCLUDE_PATH    \$dir
+    prepend-path CPATH                 \$dir
+    prepend-path CPLUS_INCLUDE_PATH    \$dir
+    prepend-path C_INCLUDE_PATH        \$dir
+    prepend-path INCLUDE               \$dir
+    prepend-path INCLUDEPATH           \$dir
+    prepend-path INCLUDE_PATH          \$dir
+    prepend-path OBJC_INCLUDE_PATH     \$dir
+    prepend-path OBJC_PATH             \$dir
+}
+proc prepend-lib-path { dir } {
+    prepend-path CMAKE_LIBRARY_PATH    \$dir
+    prepend-path LD_LIBRARY_PATH       \$dir
+    prepend-path LD_RUN_PATH           \$dir
+    prepend-path LIBRARY_PATH          \$dir
+}
+
+set   root  $3
+
+conflict $1
+prepend-include-path \$root/include
+prepend-lib-path     \$root/lib:\$root/lib64
+prepend-path      INFOPATH             \$root/share/info
+prepend-path      MANPATH              \$root/share/man
+prepend-path      PATH                 \$root/bin
+
+setenv ${1^^}_VERSION $4
+setenv ${1^^}_PATH    \$root
+setenv ${1^^}_BIN     \$root/bin
+setenv ${1^^}_LIB     \$root/lib
+EOF
+}
+
+function ASSERT() {
+  if [[ $# -ne 2 ]]
+  then
+    printf "\033[0;31mWrong number of arguments to ASSERT. (Usage: ASSERT <<return value>> <<error message>>\033[0m\n"
+    exit 1
+  fi
+
+  if [[ $1 -ne 0 ]]
+  then
+    printf "\033[0;31m $2 \033[0m\n\n"
+    exit 1
+  fi
+}
+
 PRINT=false
 MAIN_DIR=$PWD
 MAKE_JOBS=4
@@ -24,6 +103,9 @@ while [ "$1" != "" ]; do
   case $1 in
       --prefix )           shift
                            PREFIX="$1"
+                           if [[ ! $PREFIX = '/'* ]]; then
+                             PREFIX="$PWD/$PREFIX";
+                           fi
                            ;;
       -gcc | --with-gcc )  INSTALL_GCC=true
                            ;;
@@ -48,20 +130,31 @@ fi
 # Initialize path variables
 LLVM_SRC=$FRAMEWORK_PATH/src/llvm
 GCC_SRC=$FRAMEWORK_PATH/src/gcc
-CLANG_BUILD=$FRAMEWORK_PATH/build/clang
-OPENMP_BUILD=$FRAMEWORK_PATH/build/openmp
+LLVM_BUILD=$FRAMEWORK_PATH/build/clang
 GCC_BUILD=$FRAMEWORK_PATH/build/gcc
 LLVM_BIN=$FRAMEWORK_PATH/opt/llvm
 GCC_BIN=$FRAMEWORK_PATH/opt/gcc
 
-echo "LLVM_SRC = $LLVM_SRC"
-echo "GCC_SRC  = $GCC_SRC"
-echo "LLVM_BIN = $LLVM_BIN"
-echo "GCC_BIN  = $GCC_BIN"
+if [ $PRINT = true ]
+then
+  echo "LLVM_SRC = $LLVM_SRC"
+  echo "GCC_SRC  = $GCC_SRC"
+  echo "LLVM_BUILD = $LLVM_BUILD"
+  echo "GCC_BUILD  = $GCC_BUILD"
+  echo "LLVM_BIN = $LLVM_BIN"
+  echo "GCC_BIN  = $GCC_BIN"
+fi
 
 MKDIR $FRAMEWORK_PATH/src
 MKDIR $FRAMEWORK_PATH/opt
 MKDIR $FRAMEWORK_PATH/build
+MKDIR $LLVM_BUILD
+MKDIR $MAIN_DIR/modulefile
+
+if [[ `echo ":$MODULEPATH:" | grep -c ":$MAIN_DIR/modulefile:" ` -eq 0 ]]
+then
+  export MODULEPATH=$MAIN_DIR/modulefile:$MODULEPATH
+fi
 
 # Check make
 CUR_CMAKE=`cmake --version | head -n1 | awk '{print $3}'`
@@ -69,7 +162,10 @@ REQ_CMAKE=3.13.4
 if [ "$(printf '%s\n' "$CUR_CMAKE" "$REQ_CMAKE" | \
      sort -V | head -n1)" = "$REQ_CMAKE" ];
 then
-  echo "cmake version $CUR_CMAKE found"
+  if [ "$PRINT" = true ]
+  then
+    echo "cmake version $CUR_CMAKE found"
+  fi
 else
   echo "Minimum cmake version $REQ_CMAKE is required"
   exit
@@ -83,58 +179,68 @@ then
 fi
 CUR_CUDA=`nvcc --version | grep release | \
          awk -F', ' '{print $3}' | sed 's/^.//'`
-echo
-echo "cuda version $CUR_CUDA found"
+if [ "$PRINT" = true ]
+then
+  echo "cuda version $CUR_CUDA found"
+fi
 
 # Build DeviceCapability
 cd device
-make -f makeDeviceCapability.mk
+make
 ARCH=`./deviceArch`
 CAPABILITY=`./deviceCapability`
-echo "CUDA ARCH=$ARCH"
-echo "CUDA COMPUTE CAPABILITY=$CAPABILITY"
+if [ "$PRINT" = true ]
+then
+  echo "CUDA ARCH=$ARCH"
+  echo "CUDA COMPUTE CAPABILITY=$CAPABILITY"
+fi
 cd $FRAMEWORK_PATH
 
 if [ "$INSTALL_GCC" = true ]
 then
-  echo
-  echo "Installing GCC 7.3.0 ..."
-  echo "cd $GCC_SRC"
-  echo "curl -JLO https://ftp.gnu.org/gnu/gcc/gcc-7.3.0/gcc-7.3.0.tar.xz"
-  echo "tar xf gcc-7.3.0.tar.xz"
-  echo "cd gcc-7.3.0"
-  echo "./contrib/download_prerequisites"
-  echo "MKDIR $GCC_BUILD && cd $GCC_BUILD"
-  echo "$GCC_SRC/gcc-7.3.0/configure \\"
-  echo "       --prefix=$GCC_BIN \\"
-  echo "       --enable-shared  \\"
-  echo "       --enable-languages=c,c++,lto \\"
-  echo "       --enable-__cxa_atexit \\"
-  echo "       --enable-threads=posix \\"
-  echo "       --enable-checking=release \\"
-  echo "       --disable-nls \\"
-  echo "       --disable-multilib \\"
-  echo "       --disable-bootstrap \\"
-  echo "       --disable-libssp \\"
-  echo "       --disable-libgomp \\"
-  echo "       --disable-libsanitizer \\"
-  echo "       --disable-libstdcxx-pch \\"
-  echo "       --with-system-zlib"
-  echo "make -j $MAKE_JOBS && make install && \\"
-  echo -ne "    sed -i \"s/^set root .*/set root ${GCC_BIN//\//\\/}/\""
-  echo " $GCC_SRC/module/gcc-7.3.0 && \\"
-  echo "    export MODULEPATH=$GCC_SRC/module:$MODULEPATH && \\"
-  echo "    module unload gcc && module load gcc-7.3.0"
-  if [ "$PRINT" = false ]
+  if [ "$PRINT" = true ]
   then
+    cat << EOF
+Installing GCC 7.3.0 ...
+cd $GCC_SRC
+curl -JLO https://ftp.gnu.org/gnu/gcc/gcc-7.3.0/gcc-7.3.0.tar.xz
+tar xf gcc-7.3.0.tar.xz
+cd gcc-7.3.0
+./contrib/download_prerequisites"
+mkdir -p $GCC_BUILD && cd $GCC_BUILD
+$GCC_SRC/gcc-7.3.0/configure        \\
+       --prefix=$GCC_BIN            \\
+       --enable-shared              \\
+       --enable-languages=c,c++,lto \\
+       --enable-__cxa_atexit        \\
+       --enable-threads=posix       \\
+       --enable-checking=release    \\
+       --disable-nls                \\
+       --disable-multilib           \\
+       --disable-bootstrap          \\
+       --disable-libssp             \\
+       --disable-libgomp            \\
+       --disable-libsanitizer       \\
+       --disable-libstdcxx-pch      \\
+       --with-system-zlib 2> $GCC_BUILD/.cmake_error > $GCC_BUILD/.cmake_log
+make -j $MAKE_JOBS 2> $GCC_BUILD/.build_error > $GCC_BUILD/.build_log
+make install 2> $GCC_BUILD/.install_error > $GCC_BUILD/.install_log
+EOF
+  else
+    MKDIR $GCC_SRC
     cd $GCC_SRC
     if [ ! -f gcc-7.3.0.tar.xz ]
     then
+      printf "\033[0;33mGetting gcc-7.3.0.tar.xz \033[0m"
       curl -JLO https://ftp.gnu.org/gnu/gcc/gcc-7.3.0/gcc-7.3.0.tar.xz
+      printf "\033[0;33mUntar gcc-7.3.0.tar.xz \033[0m"
       tar xf gcc-7.3.0.tar.xz
       cd gcc-7.3.0
-      ./contrib/download_prerequisites
+      printf "\r\033[0;33mDownloading prerequisite\033[0m"
+      ./contrib/download_prerequisites 2>&1 > $GCC_SRC/.download_prerequisites.log
+      ASSERT "$?" "==== download_prerequisites failed for gcc"
     fi
+    printf "\033[0;33mConfiguring GCC-7.3.0\033[0m\nPlease wait.";
     MKDIR $GCC_BUILD && cd $GCC_BUILD
     $GCC_SRC/gcc-7.3.0/configure        \
            --prefix=$GCC_BIN            \
@@ -150,11 +256,21 @@ then
            --disable-libgomp            \
            --disable-libsanitizer       \
            --disable-libstdcxx-pch      \
-           --with-system-zlib
-    make -j $MAKE_JOBS && make install && \
-      sed -i "s/^set root .*/set root ${GCC_BIN//\//\\/}/" $GCC_SRC/module/gcc-7.3.0 && \
-      export MODULEPATH=$GCC_SRC/module:$MODULEPATH && \
-      module unload gcc && module load gcc-7.3.0
+           --with-system-zlib 2> $GCC_BUILD/.cmake_error > $GCC_BUILD/.cmake_log
+    ASSERT "$?" "==== Error occured in configuring GCC.\n ===== Please check cmake error log in \033[0;33m$GCC_BUILD/.cmake_error"
+
+    printf "\r\033[0;33mBuilding GCC-7.3.0\033[0m\nPlease wait.";
+    make -j $MAKE_JOBS 2> $GCC_BUILD/.build_error > $GCC_BUILD/.build_log
+    ASSERT "$?" "==== Error occured in Building GCC.\n ===== Please check cmake error log in \033[0;33m$GCC_BUILD/.build_error"
+
+    printf "\r\033[0;33mInstalling GCC-7.3.0\033[0m\nPlease wait.";
+    make install 2> $GCC_BUILD/.install_error > $GCC_BUILD/.install_log
+    ASSERT "$?" "==== Error occured in Installing GCC.\n ===== Please check cmake error log in \033[0;33m$GCC_BUILD/.install_error"
+
+    printf "\rGCC-7.3.0 installed\n\n"
+    CREATE_MODULE_FILE "gcc" "gcc-7.3.0" $GCC_BIN "7.3.0"  "The gcc package contains the GNU Compiler Collection version 7.3.0.
+You'll need this package in order to compile C, C++, and Fortran code." "Various compilers (C, C++, Fortran, ...)"
+    module unload gcc && module load gcc-7.3.0
     cd $FRAMEWORK_PATH
   fi
 fi
@@ -163,53 +279,65 @@ fi
 CUR_GCC=`gcc -dumpversion`
 REQ_GCC="6.0.0"
 if [ "$(printf '%s\n' "$REQ_GCC" "$CUR_GCC" | \
-     sort -V | head -n1)" = "$REQ_GCC" ]; then
-  echo "GCC version ${CUR_GCC} found"
-else
+     sort -V | head -n1)" != "$REQ_GCC" ]; then
   echo "Need gcc version greater than ${REQ_GCC}"
   exit 1
+fi
+
+if [ "$PRINT" = true ]
+then
+  echo "GCC version ${CUR_GCC} found"
 fi
 GCC_TOOLCHAIN=`which gcc | sed 's/\/bin\/gcc$//'`
 
 # Clone LLVM Project
-echo
-echo "Cloning LLVM ..."
-echo "git clone --depth 1 https://github.com/llvm/llvm-project.git $LLVM_SRC"
-if [ "$PRINT" = false ]
+if [ "$PRINT" = true ]
 then
+  echo "git clone --depth 1 https://github.com/llvm/llvm-project.git $LLVM_SRC"
+else
+  printf "\033[0;33mCloning LLVM ... \033[0m"
   if [ ! -d $LLVM_SRC ]
   then
-    git clone --depth 1 https://github.com/llvm/llvm-project.git $LLVM_SRC
+    git clone --depth 1 https://github.com/llvm/llvm-project.git $LLVM_SRC > $MAIN_DIR/.llvm_clone_log 2> $MAIN_DIR/.llvm_clone_error
+    ASSERT $? "==== Error in cloning llvm"
+
     # Copy the InstructionCount project to clang example directory
     cp -r $MAIN_DIR/InstructionCount $LLVM_SRC/clang/examples/InstructionCount
     echo "add_subdirectory(InstructionCount)" >> $LLVM_SRC/clang/examples/CMakeLists.txt
+    echo
+  else
+    printf "LLVM already exists\n"
   fi
 fi
 
-echo
-echo "Building Clang ..."
-echo "cmake -S $LLVM_SRC/llvm \\"
-echo "      -B $CLANG_BUILD \\"
-echo "      -DCMAKE_INSTALL_PREFIX=$LLVM_BIN \\"
-echo "      -DCMAKE_BUILD_TYPE=\"Release\" \\"
-echo "      -DLLVM_TARGETS_TO_BUILD=\"X86;NVPTX\" \\"
-echo "      -DCMAKE_EXE_LINKER_FLAGS=\"-s\" \\"
-echo "      -DCMAKE_C_COMPILER=$GCC_TOOLCHAIN/bin/gcc \\"
-echo "      -DCMAKE_CXX_COMPILER=$GCC_TOOLCHAIN/bin/g++ \\"
-echo "      -DGCC_INSTALL_PREFIX=$GCC_TOOLCHAIN \\"
-echo "      -DCLANG_OPENMP_NVPTX_DEFAULT_ARCH=$ARCH \\"
-echo "      -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \\"
-echo "      -DLLVM_ENABLE_PROJECTS=\"clang\" \\"
-echo "      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \\"
-echo "      -DCLANG_BUILD_EXAMPLES=1 \\"
-echo "      -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc"
-echo "make -C $CLANG_BUILD -j$MAKE_JOBS install"
-if [ "$PRINT" = false ]
+if [ "$PRINT" = true ]
 then
-  if [ ! -f "$CLANG_BUILD/Makefile" ]
+  cat << EOF
+cmake -S $LLVM_SRC/llvm \\
+      -B $LLVM_BUILD \\
+      -DCMAKE_INSTALL_PREFIX=$LLVM_BIN \\
+      -DCMAKE_BUILD_TYPE="Release" \\
+      -DLLVM_TARGETS_TO_BUILD="X86;NVPTX" \\
+      -DCMAKE_EXE_LINKER_FLAGS="-s" \\
+      -DCMAKE_C_COMPILER=$GCC_TOOLCHAIN/bin/gcc \\
+      -DCMAKE_CXX_COMPILER=$GCC_TOOLCHAIN/bin/g++ \\
+      -DGCC_INSTALL_PREFIX=$GCC_TOOLCHAIN \\
+      -DCLANG_OPENMP_DONE_NVPTX_DEFAULT_ARCH=$ARCH \\
+      -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \\
+      -DLLVM_ENABLE_PROJECTS="clang" \\
+      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \\
+      -DLLVM_BUILD_EXAMPLES=1 \\
+      -DLLVM_ENABLE_RUNTIMES="openmp" \\
+      -DOPENMP_DONE_ENABLE_LIBOMPTARGET=ON \\
+      -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc > $LLVM_BUILD/.cmake_log 2> $LLVM_BUILD/.cmake_error
+make -C $LLVM_BUILD -j$MAKE_JOBS install
+EOF
+else
+  if [ ! -f "$LLVM_BUILD/Makefile" ]
   then
+    printf "\033[0;33mConfiguring LLVM ...\n\033[0m";
     cmake -S $LLVM_SRC/llvm \
-          -B $CLANG_BUILD \
+          -B $LLVM_BUILD \
           -DCMAKE_INSTALL_PREFIX=$LLVM_BIN \
           -DCMAKE_BUILD_TYPE="Release" \
           -DLLVM_TARGETS_TO_BUILD="X86;NVPTX" \
@@ -217,44 +345,106 @@ then
           -DCMAKE_C_COMPILER=$GCC_TOOLCHAIN/bin/gcc \
           -DCMAKE_CXX_COMPILER=$GCC_TOOLCHAIN/bin/g++ \
           -DGCC_INSTALL_PREFIX=$GCC_TOOLCHAIN \
-          -DCLANG_OPENMP_NVPTX_DEFAULT_ARCH=$ARCH \
+          -DCLANG_OPENMP_DONE_NVPTX_DEFAULT_ARCH=$ARCH \
           -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \
           -DLLVM_ENABLE_PROJECTS="clang" \
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-          -DCLANG_BUILD_EXAMPLES=1 \
-          -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc
+          -DLLVM_BUILD_EXAMPLES=1 \
+          -DLLVM_ENABLE_RUNTIMES="openmp" \
+          -DOPENMP_DONE_ENABLE_LIBOMPTARGET=ON \
+          -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc > $LLVM_BUILD/.cmake_log 2> $LLVM_BUILD/.cmake_error &
+    CMAKE_PID=$!
+    while :
+    do
+      for s in / - \\ \|
+      do
+        printf "\r$s Please wait..."
+        sleep 1
+        kill -0 $CMAKE_PID 2> /dev/null
+        if [ $? -gt "0" ]
+        then
+          RET=`wait $CMAKE_PID`
+          printf "\r                                                                \r"
+          ASSERT "$RET" "==== Error occured.\n ===== Please check cmake error log in \033[0;33m$LLVM_BUILD/.cmake_error"
+          break 2;
+        fi
+      done
+    done
   fi
-  make -C $CLANG_BUILD -j $MAKE_JOBS install
-fi
 
-echo
-echo "Building OpenMP ..."
-echo "cmake -S $LLVM_SRC/openmp \\"
-echo "      -B $OPENMP_BUILD \\"
-echo "      -DCMAKE_INSTALL_PREFIX=$LLVM_BIN \\"
-echo "      -DCMAKE_BUILD_TYPE=\"Release\" \\"
-echo "      -DCMAKE_EXE_LINKER_FLAGS=\"-s\" \\"
-echo "      -DCMAKE_C_COMPILER=$LLVM_BIN/bin/clang \\"
-echo "      -DCMAKE_CXX_COMPILER=$LLVM_BIN/bin/clang++ \\"
-echo "      -DLIBOMP_INSTALL_ALIASES=OFF \\"
-echo "      -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \\"
-echo "      -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc"
-echo "make -C $OPENMP_BUILD -j$MAKE_JOBS install"
-if [ "$PRINT" = false ]
-then
-  if [ ! -f "$OPENMP_BUILD/Makefile" ]
-  then
-    cmake -S $LLVM_SRC/openmp \
-          -B $OPENMP_BUILD \
-          -DCMAKE_INSTALL_PREFIX=$LLVM_BIN \
-          -DCMAKE_BUILD_TYPE="Release" \
-          -DCMAKE_EXE_LINKER_FLAGS="-s" \
-          -DCMAKE_C_COMPILER=$LLVM_BIN/bin/clang \
-          -DCMAKE_CXX_COMPILER=$LLVM_BIN/bin/clang++ \
-          -DLIBOMP_INSTALL_ALIASES=OFF \
-          -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \
-          -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc
-  fi
-  make -C $OPENMP_BUILD -j $MAKE_JOBS install
-fi
+  make -C $LLVM_BUILD -j $MAKE_JOBS install > $LLVM_BUILD/.build_log 2> $LLVM_BUILD/.build_error &
+  printf "\r\033[0;33mBuilding Clang... \033[0m\n"
+  PID=$!
 
+  CLANG_DONE="false"
+  OPENMP_DONE="false"
+  TOTAL_PERCENTAGE=""
+  while :
+  do
+    for s in / - \\ \|
+    do
+      printf "\r$s"
+      sleep 1
+      PERCENTAGE=`grep -a "\[*%\]" $LLVM_BUILD/.build_log | grep -v "Binary file" | tail -n 1  | cut --delimiter="]" -f 1 | cut --delimiter='[' -f 2`
+      if [[ $PERCENTAGE != "" ]]
+      then
+        if [[ $CLANG_DONE = "false" ]]
+        then
+          if [[ $PERCENTAGE = "100%" ]]
+          then
+            CLANG_DONE="true"
+            TOTAL_PERCENTAGE=`grep -c "\[*%\]" $LLVM_BUILD/.build_log`
+          fi
+          echo -ne " $PERCENTAGE done."
+        elif [[ $OPENMP_DONE = "false" || $OPENMP_DONE = "config" ]]
+        then
+          x=`grep -c "Performing configure step for 'runtimes'" $LLVM_BUILD/.build_log`
+          if [[ $x -gt 0 && $OPENMP_DONE = "false" ]]
+          then
+            OPENMP_DONE="config"
+            printf "\r\033[0;33mConfiguring OpenMP... \033[0m\n";
+          fi
+          x=`grep -c "Performing build step for 'runtimes'" $LLVM_BUILD/.build_log`
+          if [[ $x -gt 0 ]]
+          then
+            OPENMP_DONE="ON"
+            printf "\r\033[0;33mBuilding OpenMP... \033[0m\n";
+          fi
+        elif [[ $OPENMP_DONE = "ON" ]]
+        then
+          PERCENTAGE=`grep "\[*%\]" $LLVM_BUILD/.build_log  | cut --delimiter="]" -f 1 | cut --delimiter='[' -f 2 | tail -n 1;`
+          if [[ $PERCENTAGE = "100%" ]]
+          then
+            if [[ `grep -c "\[*%\]" $LLVM_BUILD/.build_log` -ne $TOTAL_PERCENTAGE ]]
+            then
+              OPENMP_DONE="true"
+            fi
+          fi
+          echo -ne " $PERCENTAGE done."
+        elif [[ $OPENMP_DONE = "true" ]]
+        then
+          x=`grep -c "Install the project" $LLVM_BUILD/.build_log`
+          if [[ $x -gt 0 ]]
+          then
+            OPENMP_DONE="DONE"
+            printf "\r\033[0;33mInstalling... \033[0m\n";
+          fi
+        fi
+      fi
+      kill -0 $PID 2> /dev/null
+      if [ $? -gt "0" ]
+      then
+        RET=`wait $PID`
+        printf "\r                                                   \r";
+        ASSERT "$RET" "\033[0;31m ==== Error occured.\n ===== Please check build error log in \033[0;33m$LLVM_BUILD/.build_error \033[0m"
+        break 2;
+      fi
+    done
+  done
+
+  CREATE_MODULE_FILE "clang" "clang-12.0.0" $LLVM_BIN "12.0.0" "" "LLVM Clang compiler version 12.0.0"
+  echo "setenv COMPUTE_CAPABILITY  $COMPUTE_CAPABILITY" >> $MAIN_DIR/modulefile/clang-12.0.0
+  printf "\r\n\033[0;32m Installation successfull\n"
+  printf "\033[0m Module file to load clang is created in \033[0;33m$MAIN_DIR/modulefile/clang-12.0.0 \033[0mfile.\n"
+  printf " Please load this module to start using clang. \n\n"
+fi
