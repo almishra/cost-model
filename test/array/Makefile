@@ -1,6 +1,7 @@
 CC=clang
 CXX=clang++
 CFLAGS=-fopenmp -fopenmp-targets=nvptx64-nvidia-cuda -Xopenmp-target -march=sm_$(COMPUTE_CAPABILITY)
+LDFLAGS=-L$(CLANG_LIB)
 SRCS = $(wildcard *.c)
 PROGS = $(patsubst %.c,%.out,$(SRCS))
 
@@ -12,7 +13,7 @@ ifndef COMPUTE_CAPABILITY
 endif
 
 %.out: %.c
-	$(CC) $(CFLAGS)  -o $@ $<
+	$(CC) $(LDFLAGS) $(CFLAGS)  -o $@ $<
 
 clean-src: clean
 	$(RM) $(SRCS)
