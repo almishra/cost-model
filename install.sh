@@ -326,7 +326,7 @@ cmake -S $LLVM_SRC/llvm \\
       -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \\
       -DLLVM_ENABLE_PROJECTS="clang" \\
       -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \\
-      -DLLVM_BUILD_EXAMPLES=1 \\
+      -DCLANG_BUILD_EXAMPLES=1 \\
       -DLLVM_ENABLE_RUNTIMES="openmp" \\
       -DOPENMP_DONE_ENABLE_LIBOMPTARGET=ON \\
       -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc > $LLVM_BUILD/.cmake_log 2> $LLVM_BUILD/.cmake_error
@@ -336,6 +336,8 @@ else
   if [ ! -f "$LLVM_BUILD/Makefile" ]
   then
     printf "\033[0;33mConfiguring LLVM ...\n\033[0m";
+    >$LLVM_BUILD/.cmake_log
+    >$LLVM_BUILD/.cmake_error
     cmake -S $LLVM_SRC/llvm \
           -B $LLVM_BUILD \
           -DCMAKE_INSTALL_PREFIX=$LLVM_BIN \
@@ -349,30 +351,33 @@ else
           -DLIBOMPTARGET_NVPTX_COMPUTE_CAPABILITIES=$CAPABILITY \
           -DLLVM_ENABLE_PROJECTS="clang" \
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-          -DLLVM_BUILD_EXAMPLES=1 \
+          -DCLANG_BUILD_EXAMPLES=1 \
           -DLLVM_ENABLE_RUNTIMES="openmp" \
           -DOPENMP_DONE_ENABLE_LIBOMPTARGET=ON \
-          -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc > $LLVM_BUILD/.cmake_log 2> $LLVM_BUILD/.cmake_error &
+          -DLIBOMPTARGET_NVPTX_ALTERNATE_HOST_COMPILER=$GCC_TOOLCHAIN/bin/gcc  >> $LLVM_BUILD/.cmake_log 2>> $LLVM_BUILD/.cmake_error &
     CMAKE_PID=$!
     while :
     do
       for s in / - \\ \|
       do
-        printf "\r$s Please wait..."
+        printf "\r$s Please wait... $CMAKE_PID Log file - $LLVM_BUILD/.cmake_log"
         sleep 1
         kill -0 $CMAKE_PID 2> /dev/null
         if [ $? -gt "0" ]
         then
-          RET=`wait $CMAKE_PID`
-          printf "\r                                                                \r"
-          ASSERT "$RET" "==== Error occured.\n ===== Please check cmake error log in \033[0;33m$LLVM_BUILD/.cmake_error"
+          wait $CMAKE_PID 2> /dev/null
+          RET=$?
+          printf "\r                                                                                                                       \r"
+          ASSERT $RET "==== Error occured.\n ===== Please check cmake error log in \033[0;33m$LLVM_BUILD/.cmake_error"
           break 2;
         fi
       done
     done
   fi
 
-  make -C $LLVM_BUILD -j $MAKE_JOBS install > $LLVM_BUILD/.build_log 2> $LLVM_BUILD/.build_error &
+  >$LLVM_BUILD/.build_log
+  >$LLVM_BUILD/.build_error
+  make -C $LLVM_BUILD -j $MAKE_JOBS >> $LLVM_BUILD/.build_log 2>> $LLVM_BUILD/.build_error &
   printf "\r\033[0;33mBuilding Clang... \033[0m\n"
   PID=$!
 
@@ -395,7 +400,7 @@ else
             CLANG_DONE="true"
             TOTAL_PERCENTAGE=`grep -c "\[*%\]" $LLVM_BUILD/.build_log`
           fi
-          echo -ne " $PERCENTAGE done."
+          echo -ne " $PERCENTAGE done. Log File - $LLVM_BUILD/.build_log"
         elif [[ $OPENMP_DONE = "false" || $OPENMP_DONE = "config" ]]
         then
           x=`grep -c "Performing configure step for 'runtimes'" $LLVM_BUILD/.build_log`
@@ -413,37 +418,61 @@ else
         elif [[ $OPENMP_DONE = "ON" ]]
         then
           PERCENTAGE=`grep "\[*%\]" $LLVM_BUILD/.build_log  | cut --delimiter="]" -f 1 | cut --delimiter='[' -f 2 | tail -n 1;`
-          if [[ $PERCENTAGE = "100%" ]]
-          then
-            if [[ `grep -c "\[*%\]" $LLVM_BUILD/.build_log` -ne $TOTAL_PERCENTAGE ]]
-            then
-              OPENMP_DONE="true"
-            fi
-          fi
-          echo -ne " $PERCENTAGE done."
-        elif [[ $OPENMP_DONE = "true" ]]
-        then
-          x=`grep -c "Install the project" $LLVM_BUILD/.build_log`
-          if [[ $x -gt 0 ]]
-          then
-            OPENMP_DONE="DONE"
-            printf "\r\033[0;33mInstalling... \033[0m\n";
-          fi
+#          if [[ $PERCENTAGE = "100%" ]]
+#          then
+#            if [[ `grep -c "\[*%\]" $LLVM_BUILD/.build_log` -ne $TOTAL_PERCENTAGE ]]
+#            then
+#              OPENMP_DONE="true"
+#            fi
+#          fi
+          echo -ne " $PERCENTAGE done. Log File - $LLVM_BUILD/.build_log"
+#        elif [[ $OPENMP_DONE = "true" ]]
+#        then
+#          x=`grep -c "Install the project" $LLVM_BUILD/.build_log`
+#          if [[ $x -gt 0 ]]
+#          then
+#            OPENMP_DONE="DONE"
+#            printf "\r\033[0;33mInstalling... \033[0m\n";
+#          fi
         fi
       fi
       kill -0 $PID 2> /dev/null
       if [ $? -gt "0" ]
       then
-        RET=`wait $PID`
-        printf "\r                                                   \r";
+        wait $PID
+        RET=$?
+        printf "\r                                                                                                                        \r";
         ASSERT "$RET" "\033[0;31m ==== Error occured.\n ===== Please check build error log in \033[0;33m$LLVM_BUILD/.build_error \033[0m"
         break 2;
       fi
     done
   done
 
+  >$LLVM_BUILD/.install_log
+  >$LLVM_BUILD/.install_error
+  make -C $LLVM_BUILD install >> $LLVM_BUILD/.install_log 2>> $LLVM_BUILD/.install_error &
+  printf "\r\033[0;33mInstalling Clang... \033[0m\n"
+  INSTALL_PID=$!
+  while :
+  do
+    for s in / - \\ \|
+    do
+      printf "\r$s Please wait... Log file - $LLVM_BUILD/.install_log"
+      sleep 1
+      kill -0 $INSTALL_PID 2> /dev/null
+      if [ $? -gt "0" ]
+      then
+        wait $INSTALL_PID
+        RET=$?
+        printf "\r                                                                                                                       \r"
+        ASSERT "$RET" "==== Error occured.\n ===== Please check cmake error log in \033[0;33m$LLVM_BUILD/.cmake_error"
+        break 2;
+      fi
+    done
+  done
+
   CREATE_MODULE_FILE "clang" "clang-12.0.0" $LLVM_BIN "12.0.0" "" "LLVM Clang compiler version 12.0.0"
-  echo "setenv COMPUTE_CAPABILITY  $COMPUTE_CAPABILITY" >> $MAIN_DIR/modulefile/clang-12.0.0
+  echo "setenv COMPUTE_CAPABILITY $CAPABILITY" >> $MAIN_DIR/modulefile/clang-12.0.0
   printf "\r\n\033[0;32m Installation successfull\n"
   printf "\033[0m Module file to load clang is created in \033[0;33m$MAIN_DIR/modulefile/clang-12.0.0 \033[0mfile.\n"
   printf " Please load this module to start using clang. \n\n"
