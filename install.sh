@@ -307,6 +307,8 @@ else
     echo
   else
     printf "LLVM already exists\n"
+    # Copy the InstructionCount project to clang example directory
+    cp -r $MAIN_DIR/InstructionCount $LLVM_SRC/clang/examples/InstructionCount
   fi
 fi
 
@@ -413,27 +415,13 @@ else
           if [[ $x -gt 0 ]]
           then
             OPENMP_DONE="ON"
+            printf "\r                                                                                                                                                             \r";
             printf "\r\033[0;33mBuilding OpenMP... \033[0m\n";
           fi
         elif [[ $OPENMP_DONE = "ON" ]]
         then
           PERCENTAGE=`grep "\[*%\]" $LLVM_BUILD/.build_log  | cut --delimiter="]" -f 1 | cut --delimiter='[' -f 2 | tail -n 1;`
-#          if [[ $PERCENTAGE = "100%" ]]
-#          then
-#            if [[ `grep -c "\[*%\]" $LLVM_BUILD/.build_log` -ne $TOTAL_PERCENTAGE ]]
-#            then
-#              OPENMP_DONE="true"
-#            fi
-#          fi
           echo -ne " $PERCENTAGE done. Log File - $LLVM_BUILD/.build_log"
-#        elif [[ $OPENMP_DONE = "true" ]]
-#        then
-#          x=`grep -c "Install the project" $LLVM_BUILD/.build_log`
-#          if [[ $x -gt 0 ]]
-#          then
-#            OPENMP_DONE="DONE"
-#            printf "\r\033[0;33mInstalling... \033[0m\n";
-#          fi
         fi
       fi
       kill -0 $PID 2> /dev/null
