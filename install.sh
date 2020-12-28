@@ -308,7 +308,8 @@ else
   else
     printf "LLVM already exists\n"
     # Copy the InstructionCount project to clang example directory
-    cp -r $MAIN_DIR/InstructionCount $LLVM_SRC/clang/examples/InstructionCount
+    cp -r $MAIN_DIR/InstructionCount/*.cpp $LLVM_SRC/clang/examples/InstructionCount/
+    cp -r $MAIN_DIR/InstructionCount/*.h $LLVM_SRC/clang/examples/InstructionCount/
   fi
 fi
 
