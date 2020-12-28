@@ -15,11 +15,30 @@
 using namespace clang;
 using namespace llvm;
 
+class For
+{
+private:
+  ForStmt *st;
+  int numIteration;
+  SourceLocation endLocation;
+
+public:
+  For(ForStmt *fStmt, int num, SourceLocation loc)
+    : st(fStmt), numIteration(num), endLocation(loc) {
+    }
+
+  int getNumIteration() { return numIteration; }
+  ForStmt *getForStmt() { return st; };
+  SourceLocation getEndLocation() { return endLocation; }
+};
+
 class InstructionCountVisitor :
   public RecursiveASTVisitor<InstructionCountVisitor> {
   private:
     ASTContext *astContext;
     SourceManager *SM;
+
+    std::vector<For> innerFor;
 
     bool insideKernel;
     bool insideLoop;
@@ -42,10 +61,20 @@ class InstructionCountVisitor :
     int getForLowerBound(Stmt* s)
     {
       int ret = 0;
-      VarDecl *d = dyn_cast<VarDecl>(dyn_cast<DeclStmt>(s)->getSingleDecl());
-      d->getInit()->dump();
-      if(IntegerLiteral *I = dyn_cast<IntegerLiteral>(d->getInit())) {
-        ret = I->getValue().getLimitedValue(INT_MAX);
+      if(auto bin = dyn_cast<BinaryOperator>(s)) {
+        if(IntegerLiteral *I = dyn_cast<IntegerLiteral>(bin->getRHS())) {
+          ret = I->getValue().getLimitedValue(INT_MAX);
+        }
+      } else {
+        if(!dyn_cast<DeclStmt>(s)->isSingleDecl()) {
+          llvm::errs() << "Only one declaration is expected in for loop\n";
+          return INT_MIN;
+        }
+        VarDecl *d = dyn_cast<VarDecl>(dyn_cast<DeclStmt>(s)->getSingleDecl());
+        d->getInit()->dump();
+        if(IntegerLiteral *I = dyn_cast<IntegerLiteral>(d->getInit())) {
+          ret = I->getValue().getLimitedValue(INT_MAX);
+        }
       }
 
       return ret;
@@ -142,13 +171,38 @@ class InstructionCountVisitor :
       return true;
     }
 
+    virtual bool VisitForStmt(ForStmt *st) {
+      if(insideKernel) {
+        llvm::errs() << "ForStmt inside kernel visited\n";
+        int lb = getForLowerBound(st->getInit());
+        if(lb == INT_MIN) {
+          return false;
+        }
+        int ub = getForUpperBound(st->getCond());
+        int stride = getForStride(st->getInc());
+        int iter = (ub - (lb-stride)) / stride;
+        llvm::errs() << "LB = " << lb << "\n";
+        llvm::errs() << "UB = " << ub << "\n";
+        llvm::errs() << "INC = " << stride << "\n";
+        llvm::errs() << "Iteration = " << iter << "\n";
+        innerFor.push_back(For(st, iter, st->getEndLoc()));
+        TraverseStmt(st->getBody());
+        innerFor.pop_back();
+      } else {
+        if(!insideLoop)
+          loopEnd = st->getEndLoc();
+        insideLoop = true;
+      }
+      return true;
+    }
+
     virtual bool VisitStmt(Stmt *st) {
       if(insideLoop && isBefore(loopEnd, st->getBeginLoc())) {
         insideLoop = false;
       }
 
       bool found = false;
-      //found |= kernel_found<OMPForDirective>(st);
+      found |= kernel_found<OMPForDirective>(st);
       found |= kernel_found<OMPParallelForDirective>(st);
 
       if(found) {
@@ -158,7 +212,7 @@ class InstructionCountVisitor :
         st->getBeginLoc().print(llvm::errs(), *SM);
         llvm::errs() << "\n";
         insideKernel = true;
-        OMPParallelForDirective *omp = dyn_cast<OMPParallelForDirective>(st);
+        OMPLoopDirective *omp = dyn_cast<OMPLoopDirective>(st);
         for(unsigned int i = 0; i<omp->getNumClauses(); i++) {
           if(auto collapse = dyn_cast<OMPCollapseClause>(omp->getClause(i))) {
             llvm::errs() << "Has collapse ";
@@ -170,9 +224,11 @@ class InstructionCountVisitor :
         }
         Expr::EvalResult result;
         omp->getNumIterations()->EvaluateAsInt(result, *astContext);
-        lastKernel->setIteration(result.Val.getInt().getLimitedValue());
+        lastKernel->setNumIteration(result.Val.getInt().getLimitedValue());
 
-        TraverseStmt(omp->getBody());
+        bool ret = TraverseStmt(omp->getBody());
+        if(ret == false)
+          return false;
         llvm::errs() << "Done Visiting the kernel body\n";
         insideKernel = false;
 
@@ -182,9 +238,19 @@ class InstructionCountVisitor :
         lastKernel->print();
       } else {
         if(insideKernel) {
-          int count = 1;
-          if(ForStmt *f = dyn_cast<ForStmt>(st)) {
+          /*while(innerFor.size() > 0) {
+            For back = innerFor.back();
+            if(isBefore(back.getEndLocation(), st->getBeginLoc()))
+              innerFor.pop_back();
+            else
+              break;
+          }*/
+          /*if(ForStmt *f = dyn_cast<ForStmt>(st)) {
+            //f->dump();
             int lb = getForLowerBound(f->getInit());
+            if(lb == INT_MIN) {
+              return false;
+            }
             int ub = getForUpperBound(f->getCond());
             int stride = getForStride(f->getInc());
             int iter = (ub - (lb-stride)) / stride;
@@ -192,11 +258,21 @@ class InstructionCountVisitor :
             llvm::errs() << "UB = " << ub << "\n";
             llvm::errs() << "INC = " << stride << "\n";
             llvm::errs() << "Iteration = " << iter << "\n";
-            count = iter;
+            innerFor.push_back(For(f, iter, f->getEndLoc()));
+            TraverseStmt(f->getBody());
+            innerFor.pop_back();
+          }*/
+          int counter = 1;
+          for(int i=0; i<innerFor.size(); i++) {
+            //llvm::errs() << "Iter = " << innerFor[i].getNumIteration() << "\n";
+            counter *= innerFor[i].getNumIteration();
           }
-          lastKernel->incrStmt(st, count);
+          if(counter > 1) counter--;
+          
+          lastKernel->incrStmt(st, counter);
         }
-        if(dyn_cast<ForStmt>(st) || dyn_cast<WhileStmt>(st)) {
+        //if(dyn_cast<ForStmt>(st) || dyn_cast<WhileStmt>(st)) {
+        if(dyn_cast<WhileStmt>(st)) {
           if(!insideLoop)
             loopEnd = st->getEndLoc();
           insideLoop = true;
@@ -209,7 +285,8 @@ class InstructionCountVisitor :
 
 class InstructionCountASTConsumer : public ASTConsumer {
   private:
-    InstructionCountVisitor *visitor; // doesn't have to be private
+    InstructionCountVisitor *visitor;
+
   public:
     explicit InstructionCountASTConsumer(CompilerInstance *CI)
       : visitor(new InstructionCountVisitor(CI)) // initialize the visitor
