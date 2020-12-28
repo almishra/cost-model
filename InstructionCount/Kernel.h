@@ -1,6 +1,5 @@
-#ifndef DATAREUSE_KERNEL_H                                                      
-#define DATAREUSE_KERNEL_H                                                      
-#include "clang/Frontend/FrontendPluginRegistry.h"                              
+#ifndef INSTRUCTIONCOUNT_KERNEL_H                                                      
+#define INSTRUCTIONCOUNT_KERNEL_H                                                      
 
 class Kernel {                                                                  
   int id;                                                                     
@@ -258,4 +257,4 @@ class Kernel {
   }                                                                           
 };
 
-#endif
+#endif // End of header 
