@@ -335,7 +335,7 @@ class Kernel {
     for(int i=I8; i<=NONE; i++) llvm::outs() << minus[i] << ","; 
     for(int i=I8; i<=NONE; i++) llvm::outs() << Not[i] << ","; 
     for(int i=I8; i<=NONE; i++) llvm::outs() << lNot[i] << ","; 
-    llvm::errs() << "\n";
+    llvm::outs() << "\n";
   }
 
   void print() {
