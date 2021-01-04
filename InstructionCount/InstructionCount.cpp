@@ -224,12 +224,12 @@ class InstructionCountVisitor :
         }
         Expr::EvalResult result;
         omp->getNumIterations()->EvaluateAsInt(result, *astContext);
-	if(result.Val.isInt()) {
+	      if(result.Val.isInt()) {
           lastKernel->setNumIteration(result.Val.getInt().getLimitedValue());
-	} else {
-	  llvm::errs() << "Expecting static int value in OMP Parallel for \n";
-	  return false;
-	}
+	      } else {
+	        llvm::errs() << "Expecting static int value in OMP Parallel for \n";
+	        return false;
+	      }
 
         bool ret = TraverseStmt(omp->getBody());
         if(ret == false)
