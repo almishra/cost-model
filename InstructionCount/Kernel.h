@@ -8,6 +8,9 @@ class Kernel {
   clang::Stmt *loop;
   clang::FunctionDecl *FD;
 
+  enum TYPE { I8, I16, I32, I64, F32, F64, NONE, TYPE_COUNT };
+  const std::string STR[TYPE_COUNT] = { "i8", "i16", "i32", "i64", "f32", "f64", "NONE" };
+
   int numIteration;
 
   int varDecl;
@@ -18,49 +21,47 @@ class Kernel {
   int charLiteral;
   int funcCall;
 
-  enum TYPE { I8, I16, I32, I64, F32, F64, NONE }; 
+  int add[TYPE_COUNT];
+  int sub[TYPE_COUNT];
+  int mul[TYPE_COUNT];
+  int div[TYPE_COUNT];
+  int rem[TYPE_COUNT];
+  int shl[TYPE_COUNT];
+  int shr[TYPE_COUNT];
+  int lt[TYPE_COUNT];
+  int le[TYPE_COUNT];
+  int gt[TYPE_COUNT];
+  int ge[TYPE_COUNT];
+  int eq[TYPE_COUNT];
+  int ne[TYPE_COUNT];
+  int And[TYPE_COUNT];
+  int Xor[TYPE_COUNT];
+  int Or[TYPE_COUNT];
+  int lAnd[TYPE_COUNT];
+  int lOr[TYPE_COUNT];
+  int assign[TYPE_COUNT];
+  int mulAssign[TYPE_COUNT];
+  int divAssign[TYPE_COUNT];
+  int remAssign[TYPE_COUNT];
+  int addAssign[TYPE_COUNT];
+  int subAssign[TYPE_COUNT];
+  int shlAssign[TYPE_COUNT];
+  int shrAssign[TYPE_COUNT];
+  int andAssign[TYPE_COUNT];
+  int xorAssign[TYPE_COUNT];
+  int orAssign[TYPE_COUNT];
+  int comma[TYPE_COUNT];
 
-  int add[7];
-  int sub[7];
-  int mul[7];
-  int div[7];
-  int rem[7];
-  int shl[7];
-  int shr[7];
-  int lt[7];
-  int le[7];
-  int gt[7];
-  int ge[7];
-  int eq[7];
-  int ne[7];
-  int And[7];
-  int Xor[7];
-  int Or[7];
-  int lAnd[7];
-  int lOr[7];
-  int assign[7];
-  int mulAssign[7];
-  int divAssign[7];
-  int remAssign[7];
-  int addAssign[7];
-  int subAssign[7];
-  int shlAssign[7];
-  int shrAssign[7];
-  int andAssign[7];
-  int xorAssign[7];
-  int orAssign[7];
-  int comma[7];
-
-  int postInc[7];
-  int postDec[7];
-  int preInc[7];
-  int preDec[7];
-  int addrOf[7];
-  int deRef[7];
-  int plus[7];
-  int minus[7];
-  int Not[7];
-  int lNot[7];
+  int postInc[TYPE_COUNT];
+  int postDec[TYPE_COUNT];
+  int preInc[TYPE_COUNT];
+  int preDec[TYPE_COUNT];
+  int addrOf[TYPE_COUNT];
+  int deRef[TYPE_COUNT];
+  int plus[TYPE_COUNT];
+  int minus[TYPE_COUNT];
+  int Not[TYPE_COUNT];
+  int lNot[TYPE_COUNT];
 
   public:
   Kernel(int ID, clang::Stmt *stmt, clang::FunctionDecl *F) : id(ID), st(stmt), FD(F) {
@@ -77,7 +78,7 @@ class Kernel {
     charLiteral = 0;
     funcCall = 0;
 
-    for(int i=I8; i<=NONE; i++) {
+    for(int i=0; i<TYPE_COUNT; i++) {
       add[i] = 0;
       sub[i] = 0;
       mul[i] = 0;
@@ -135,8 +136,10 @@ class Kernel {
 
   void incrStmt(clang::Stmt *st, int count) {
     TYPE type = NONE;
-    const clang::BuiltinType *T;// = llvm::dyn_cast<clang::BuiltinType>(st->getType());
-    if(auto b = llvm::dyn_cast<clang::BinaryOperator>(st)) 
+
+    //TODO : Currently only considering BUiltin types. Add cases for other types
+    const clang::BuiltinType *T;
+    if(auto b = llvm::dyn_cast<clang::BinaryOperator>(st))
       T = llvm::dyn_cast<clang::BuiltinType>(b->getType());
     if(auto u = llvm::dyn_cast<clang::UnaryOperator>(st))
       T = llvm::dyn_cast<clang::BuiltinType>(u->getType());
@@ -295,51 +298,53 @@ class Kernel {
     llvm::outs() << fpLiteral << ",";
     llvm::outs() << charLiteral << ",";
     llvm::outs() << funcCall << ",";
-    for(int i=I8; i<=NONE; i++) llvm::outs() << add[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << sub[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << mul[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << div[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << rem[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << shl[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << shr[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << lt[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << le[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << gt[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << ge[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << eq[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << ne[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << And[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << Xor[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << Or[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << lAnd[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << lOr[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << assign[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << mulAssign[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << divAssign[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << remAssign[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << addAssign[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << subAssign[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << shlAssign[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << shrAssign[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << andAssign[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << xorAssign[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << orAssign[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << comma[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << postInc[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << postDec[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << preInc[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << preDec[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << addrOf[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << deRef[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << plus[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << minus[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << Not[i] << ","; 
-    for(int i=I8; i<=NONE; i++) llvm::outs() << lNot[i] << ","; 
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << add[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << sub[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << mul[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << div[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << rem[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << shl[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << shr[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << lt[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << le[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << gt[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << ge[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << eq[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << ne[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << And[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << Xor[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << Or[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << lAnd[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << lOr[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << assign[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << mulAssign[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << divAssign[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << remAssign[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << addAssign[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << subAssign[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << shlAssign[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << shrAssign[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << andAssign[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << xorAssign[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << orAssign[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << comma[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << postInc[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << postDec[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << preInc[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << preDec[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << addrOf[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << deRef[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << plus[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << minus[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << Not[i] << ",";
+    for(int i=0; i<TYPE_COUNT; i++) llvm::outs() << lNot[i] << ",";
     llvm::outs() << "\n";
   }
 
   void print() {
+
     llvm::outs() << "Total Number of Iterations: " << numIteration << "\n\n";
+
     llvm::outs() << "varDecl : " << varDecl << "\n";
     llvm::outs() << "refExpr  : " << refExpr << "\n";
     llvm::outs() << "intLiteral  : " << intLiteral << "\n";
@@ -348,128 +353,125 @@ class Kernel {
     llvm::outs() << "charLiteral  : " << charLiteral << "\n";
     llvm::outs() << "funcCall  : " << funcCall << "\n\n";
 
-    const char *STR[7] = { "i8", "i16", "i32", "i64", "f32", "f64", "NONE" };
-    //for(int i=I8; i<=NONE; i++) {
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "add_" << STR[i] << "  : " << add[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "sub_" << STR[i] << "  : " << sub[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "mul_" << STR[i] << "  : " << mul[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "div_" << STR[i] << "  : " << div[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "rem_" << STR[i] << "  : " << rem[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "shl_" << STR[i] << "  : " << shl[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "shr_" << STR[i] << "  : " << shr[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "lt_" << STR[i] << "  : " << lt[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "le_" << STR[i] << "  : " << le[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "gt_" << STR[i] << "  : " << gt[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "ge_" << STR[i] << "  : " << ge[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "eq_" << STR[i] << "  : " << eq[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "ne_" << STR[i] << "  : " << ne[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "And_" << STR[i] << "  : " << And[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "Xor_" << STR[i] << "  : " << Xor[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "Or_" << STR[i] << "  : " << Or[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "lAnd_" << STR[i] << "  : " << lAnd[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "lOr_" << STR[i] << "  : " << lOr[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "assign_" << STR[i] << "  : " << assign[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "mulAssign_" << STR[i] << "  : " << mulAssign[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "divAssign_" << STR[i] << "  : " << divAssign[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "remAssign_" << STR[i] << "  : " << remAssign[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "addAssign_" << STR[i] << "  : " << addAssign[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "subAssign_" << STR[i] << "  : " << subAssign[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "shlAssign_" << STR[i] << "  : " << shlAssign[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "shrAssign_" << STR[i] << "  : " << shrAssign[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "andAssign_" << STR[i] << "  : " << andAssign[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "xorAssign_" << STR[i] << "  : " << xorAssign[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "orAssign_" << STR[i] << "  : " << orAssign[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "comma_" << STR[i] << "  : " << comma[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "postInc_" << STR[i] << "  : " << postInc[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "postDec_" << STR[i] << "  : " << postDec[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "preInc_" << STR[i] << "  : " << preInc[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "preDec_" << STR[i] << "  : " << preDec[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "addrOf_" << STR[i] << "  : " << addrOf[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "deRef_" << STR[i] << "  : " << deRef[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "plus_" << STR[i] << "  : " << plus[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "minus_" << STR[i] << "  : " << minus[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "Not_" << STR[i] << "  : " << Not[i] << "\n";
 
-    for(int i=I8; i<=NONE; i++)
+    for(int i=0; i<TYPE_COUNT; i++)
       llvm::outs() << "lNot_" << STR[i] << "  : " << lNot[i] << "\n";
-    //}
   }
 
   // Overloading operator < for sorting of keys in map
