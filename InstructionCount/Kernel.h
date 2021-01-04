@@ -286,137 +286,189 @@ class Kernel {
     }
   }
 
-  void print() {
-    llvm::errs() << "Total Number of Iterations: " << numIteration << "\n\n";
-    llvm::errs() << "varDecl : " << varDecl << "\n";
-    llvm::errs() << "refExpr  : " << refExpr << "\n";
-    llvm::errs() << "intLiteral  : " << intLiteral << "\n";
-    llvm::errs() << "floatLiteral  : " << floatLiteral << "\n";
-    llvm::errs() << "fpLiteral  : " << fpLiteral << "\n";
-    llvm::errs() << "charLiteral  : " << charLiteral << "\n";
-    llvm::errs() << "funcCall  : " << funcCall << "\n\n";
+  void dump() {
+    llvm::outs() << numIteration << ",";
+    llvm::outs() << varDecl << ",";
+    llvm::outs() << refExpr << ",";
+    llvm::outs() << intLiteral << ",";
+    llvm::outs() << floatLiteral << ",";
+    llvm::outs() << fpLiteral << ",";
+    llvm::outs() << charLiteral << ",";
+    llvm::outs() << funcCall << ",";
+    for(int i=I8; i<=NONE; i++) llvm::outs() << add[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << sub[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << mul[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << div[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << rem[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << shl[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << shr[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << lt[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << le[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << gt[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << ge[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << eq[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << ne[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << And[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << Xor[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << Or[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << lAnd[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << lOr[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << assign[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << mulAssign[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << divAssign[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << remAssign[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << addAssign[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << subAssign[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << shlAssign[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << shrAssign[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << andAssign[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << xorAssign[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << orAssign[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << comma[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << postInc[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << postDec[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << preInc[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << preDec[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << addrOf[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << deRef[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << plus[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << minus[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << Not[i] << ","; 
+    for(int i=I8; i<=NONE; i++) llvm::outs() << lNot[i] << ","; 
+    llvm::errs() << "\n";
+  }
 
-    char *STR[7] = { "i8", "i16", "i32", "i64", "f32", "f64", "NONE" };
+  void print() {
+    llvm::outs() << "Total Number of Iterations: " << numIteration << "\n\n";
+    llvm::outs() << "varDecl : " << varDecl << "\n";
+    llvm::outs() << "refExpr  : " << refExpr << "\n";
+    llvm::outs() << "intLiteral  : " << intLiteral << "\n";
+    llvm::outs() << "floatLiteral  : " << floatLiteral << "\n";
+    llvm::outs() << "fpLiteral  : " << fpLiteral << "\n";
+    llvm::outs() << "charLiteral  : " << charLiteral << "\n";
+    llvm::outs() << "funcCall  : " << funcCall << "\n\n";
+
+    const char *STR[7] = { "i8", "i16", "i32", "i64", "f32", "f64", "NONE" };
     //for(int i=I8; i<=NONE; i++) {
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "add_" << STR[i] << "  : " << add[i] << "\n";
+      llvm::outs() << "add_" << STR[i] << "  : " << add[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "sub_" << STR[i] << "  : " << sub[i] << "\n";
+      llvm::outs() << "sub_" << STR[i] << "  : " << sub[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "mul_" << STR[i] << "  : " << mul[i] << "\n";
+      llvm::outs() << "mul_" << STR[i] << "  : " << mul[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "div_" << STR[i] << "  : " << div[i] << "\n";
+      llvm::outs() << "div_" << STR[i] << "  : " << div[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "rem_" << STR[i] << "  : " << rem[i] << "\n";
+      llvm::outs() << "rem_" << STR[i] << "  : " << rem[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "shl_" << STR[i] << "  : " << shl[i] << "\n";
+      llvm::outs() << "shl_" << STR[i] << "  : " << shl[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "shr_" << STR[i] << "  : " << shr[i] << "\n";
+      llvm::outs() << "shr_" << STR[i] << "  : " << shr[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "lt_" << STR[i] << "  : " << lt[i] << "\n";
+      llvm::outs() << "lt_" << STR[i] << "  : " << lt[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "le_" << STR[i] << "  : " << le[i] << "\n";
+      llvm::outs() << "le_" << STR[i] << "  : " << le[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "gt_" << STR[i] << "  : " << gt[i] << "\n";
+      llvm::outs() << "gt_" << STR[i] << "  : " << gt[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "ge_" << STR[i] << "  : " << ge[i] << "\n";
+      llvm::outs() << "ge_" << STR[i] << "  : " << ge[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "eq_" << STR[i] << "  : " << eq[i] << "\n";
+      llvm::outs() << "eq_" << STR[i] << "  : " << eq[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "ne_" << STR[i] << "  : " << ne[i] << "\n";
+      llvm::outs() << "ne_" << STR[i] << "  : " << ne[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "And_" << STR[i] << "  : " << And[i] << "\n";
+      llvm::outs() << "And_" << STR[i] << "  : " << And[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "Xor_" << STR[i] << "  : " << Xor[i] << "\n";
+      llvm::outs() << "Xor_" << STR[i] << "  : " << Xor[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "Or_" << STR[i] << "  : " << Or[i] << "\n";
+      llvm::outs() << "Or_" << STR[i] << "  : " << Or[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "lAnd_" << STR[i] << "  : " << lAnd[i] << "\n";
+      llvm::outs() << "lAnd_" << STR[i] << "  : " << lAnd[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "lOr_" << STR[i] << "  : " << lOr[i] << "\n";
+      llvm::outs() << "lOr_" << STR[i] << "  : " << lOr[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "assign_" << STR[i] << "  : " << assign[i] << "\n";
+      llvm::outs() << "assign_" << STR[i] << "  : " << assign[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "mulAssign_" << STR[i] << "  : " << mulAssign[i] << "\n";
+      llvm::outs() << "mulAssign_" << STR[i] << "  : " << mulAssign[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "divAssign_" << STR[i] << "  : " << divAssign[i] << "\n";
+      llvm::outs() << "divAssign_" << STR[i] << "  : " << divAssign[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "remAssign_" << STR[i] << "  : " << remAssign[i] << "\n";
+      llvm::outs() << "remAssign_" << STR[i] << "  : " << remAssign[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "addAssign_" << STR[i] << "  : " << addAssign[i] << "\n";
+      llvm::outs() << "addAssign_" << STR[i] << "  : " << addAssign[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "subAssign_" << STR[i] << "  : " << subAssign[i] << "\n";
+      llvm::outs() << "subAssign_" << STR[i] << "  : " << subAssign[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "shlAssign_" << STR[i] << "  : " << shlAssign[i] << "\n";
+      llvm::outs() << "shlAssign_" << STR[i] << "  : " << shlAssign[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "shrAssign_" << STR[i] << "  : " << shrAssign[i] << "\n";
+      llvm::outs() << "shrAssign_" << STR[i] << "  : " << shrAssign[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "andAssign_" << STR[i] << "  : " << andAssign[i] << "\n";
+      llvm::outs() << "andAssign_" << STR[i] << "  : " << andAssign[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "xorAssign_" << STR[i] << "  : " << xorAssign[i] << "\n";
+      llvm::outs() << "xorAssign_" << STR[i] << "  : " << xorAssign[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "orAssign_" << STR[i] << "  : " << orAssign[i] << "\n";
+      llvm::outs() << "orAssign_" << STR[i] << "  : " << orAssign[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "comma_" << STR[i] << "  : " << comma[i] << "\n";
+      llvm::outs() << "comma_" << STR[i] << "  : " << comma[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "postInc_" << STR[i] << "  : " << postInc[i] << "\n";
+      llvm::outs() << "postInc_" << STR[i] << "  : " << postInc[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "postDec_" << STR[i] << "  : " << postDec[i] << "\n";
+      llvm::outs() << "postDec_" << STR[i] << "  : " << postDec[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "preInc_" << STR[i] << "  : " << preInc[i] << "\n";
+      llvm::outs() << "preInc_" << STR[i] << "  : " << preInc[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "preDec_" << STR[i] << "  : " << preDec[i] << "\n";
+      llvm::outs() << "preDec_" << STR[i] << "  : " << preDec[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "addrOf_" << STR[i] << "  : " << addrOf[i] << "\n";
+      llvm::outs() << "addrOf_" << STR[i] << "  : " << addrOf[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "deRef_" << STR[i] << "  : " << deRef[i] << "\n";
+      llvm::outs() << "deRef_" << STR[i] << "  : " << deRef[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "plus_" << STR[i] << "  : " << plus[i] << "\n";
+      llvm::outs() << "plus_" << STR[i] << "  : " << plus[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "minus_" << STR[i] << "  : " << minus[i] << "\n";
+      llvm::outs() << "minus_" << STR[i] << "  : " << minus[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "Not_" << STR[i] << "  : " << Not[i] << "\n";
+      llvm::outs() << "Not_" << STR[i] << "  : " << Not[i] << "\n";
 
     for(int i=I8; i<=NONE; i++)
-      llvm::errs() << "lNot_" << STR[i] << "  : " << lNot[i] << "\n";
+      llvm::outs() << "lNot_" << STR[i] << "  : " << lNot[i] << "\n";
     //}
   }
 

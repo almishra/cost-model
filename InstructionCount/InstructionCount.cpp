@@ -67,11 +67,14 @@ class InstructionCountVisitor :
         }
       } else {
         if(!dyn_cast<DeclStmt>(s)->isSingleDecl()) {
-          llvm::errs() << "Only one declaration is expected in for loop\n";
+          llvm::errs().changeColor(raw_ostream::RED);
+          llvm::errs() << "Error: Only one init is expected in for loop at ";
+          s->getBeginLoc().print(llvm::errs(), *SM);
+          llvm::errs() << "\n";
+          llvm::errs().changeColor(raw_ostream::WHITE);
           return INT_MIN;
         }
         VarDecl *d = dyn_cast<VarDecl>(dyn_cast<DeclStmt>(s)->getSingleDecl());
-        d->getInit()->dump();
         if(IntegerLiteral *I = dyn_cast<IntegerLiteral>(d->getInit())) {
           ret = I->getValue().getLimitedValue(INT_MAX);
         }
@@ -173,7 +176,9 @@ class InstructionCountVisitor :
 
     virtual bool VisitForStmt(ForStmt *st) {
       if(insideKernel) {
-        llvm::errs() << "ForStmt inside kernel visited\n";
+        llvm::errs().changeColor(raw_ostream::GREEN);
+        llvm::errs() << "INFO: ForStmt inside kernel visited\n";
+        llvm::errs().changeColor(raw_ostream::WHITE);
         int lb = getForLowerBound(st->getInit());
         if(lb == INT_MIN) {
           return false;
@@ -181,10 +186,13 @@ class InstructionCountVisitor :
         int ub = getForUpperBound(st->getCond());
         int stride = getForStride(st->getInc());
         int iter = (ub - (lb-stride)) / stride;
-        llvm::errs() << "LB = " << lb << "\n";
-        llvm::errs() << "UB = " << ub << "\n";
-        llvm::errs() << "INC = " << stride << "\n";
-        llvm::errs() << "Iteration = " << iter << "\n";
+        llvm::errs().changeColor(raw_ostream::GREEN);
+        llvm::errs() << "INFO:  LB  = " << lb << "\n";
+        llvm::errs() << "INFO:  UB  = " << ub << "\n";
+        llvm::errs() << "INFO:  INC = " << stride << "\n";
+        llvm::errs() << "INFO:  ITR = " << iter << "\n";
+        llvm::errs().changeColor(raw_ostream::WHITE);
+
         innerFor.push_back(For(st, iter, st->getEndLoc()));
         TraverseStmt(st->getBody());
         innerFor.pop_back();
@@ -208,18 +216,22 @@ class InstructionCountVisitor :
       if(found) {
         int id = lastKernel ? lastKernel->getID() + 1 : 1;
         lastKernel = new Kernel(id, st, currentFunction);
-        llvm::errs() << "Kernel found at ";
+        llvm::errs().changeColor(raw_ostream::GREEN);
+        llvm::errs() << "INFO: Kernel found at ";
         st->getBeginLoc().print(llvm::errs(), *SM);
         llvm::errs() << "\n";
+        llvm::errs().changeColor(raw_ostream::WHITE);
+
         insideKernel = true;
         OMPLoopDirective *omp = dyn_cast<OMPLoopDirective>(st);
         for(unsigned int i = 0; i<omp->getNumClauses(); i++) {
           if(auto collapse = dyn_cast<OMPCollapseClause>(omp->getClause(i))) {
-            llvm::errs() << "Has collapse ";
             Expr *ex = dyn_cast<Expr>(collapse->getNumForLoops());
             Expr::EvalResult Result;
             ex->EvaluateAsInt(Result, *astContext);
-            llvm::errs() << " " << Result.Val.getInt().getLimitedValue() << "\n";
+            llvm::errs().changeColor(raw_ostream::GREEN);
+            llvm::errs() << "INFO: Kernel has collapse - " << Result.Val.getInt().getLimitedValue() << "\n";
+            llvm::errs().changeColor(raw_ostream::WHITE);
           }
         }
         Expr::EvalResult result;
@@ -227,60 +239,35 @@ class InstructionCountVisitor :
 	      if(result.Val.isInt()) {
           lastKernel->setNumIteration(result.Val.getInt().getLimitedValue());
 	      } else {
-	        llvm::errs() << "Expecting static int value in OMP Parallel for \n";
+          llvm::errs().changeColor(raw_ostream::RED);
+	        llvm::errs() << "ERROR: Expecting static int value in OMP Parallel for at ";
+          st->getBeginLoc().print(llvm::errs(), *SM);
+          llvm::errs() << "\n";
+          llvm::errs().changeColor(raw_ostream::WHITE);
 	        return false;
 	      }
 
         bool ret = TraverseStmt(omp->getBody());
         if(ret == false)
           return false;
-        llvm::errs() << "Done Visiting the kernel body\n";
+        llvm::errs().changeColor(raw_ostream::GREEN);
+        llvm::errs() << "INFO: Done Visiting the kernel body\n";
+        llvm::errs().changeColor(raw_ostream::WHITE);
         insideKernel = false;
 
         std::vector<Kernel*> vec;
         vec.push_back(lastKernel);
         kernel_map[id] = vec;
-        lastKernel->print();
+        //lastKernel->print();
+        lastKernel->dump();
       } else {
         if(insideKernel) {
-          /*while(innerFor.size() > 0) {
-            For back = innerFor.back();
-            if(isBefore(back.getEndLocation(), st->getBeginLoc()))
-              innerFor.pop_back();
-            else
-              break;
-          }*/
-          /*if(ForStmt *f = dyn_cast<ForStmt>(st)) {
-            //f->dump();
-            int lb = getForLowerBound(f->getInit());
-            if(lb == INT_MIN) {
-              return false;
-            }
-            int ub = getForUpperBound(f->getCond());
-            int stride = getForStride(f->getInc());
-            int iter = (ub - (lb-stride)) / stride;
-            llvm::errs() << "LB = " << lb << "\n";
-            llvm::errs() << "UB = " << ub << "\n";
-            llvm::errs() << "INC = " << stride << "\n";
-            llvm::errs() << "Iteration = " << iter << "\n";
-            innerFor.push_back(For(f, iter, f->getEndLoc()));
-            TraverseStmt(f->getBody());
-            innerFor.pop_back();
-          }*/
           int counter = 1;
-          for(int i=0; i<innerFor.size(); i++) {
-            //llvm::errs() << "Iter = " << innerFor[i].getNumIteration() << "\n";
+          for(int i=0; i<innerFor.size(); i++)
             counter *= innerFor[i].getNumIteration();
-          }
           if(counter > 1) counter--;
           
           lastKernel->incrStmt(st, counter);
-        }
-        //if(dyn_cast<ForStmt>(st) || dyn_cast<WhileStmt>(st)) {
-        if(dyn_cast<WhileStmt>(st)) {
-          if(!insideLoop)
-            loopEnd = st->getEndLoc();
-          insideLoop = true;
         }
       }
 
@@ -295,7 +282,7 @@ class InstructionCountASTConsumer : public ASTConsumer {
   public:
     explicit InstructionCountASTConsumer(CompilerInstance *CI)
       : visitor(new InstructionCountVisitor(CI)) // initialize the visitor
-    { }
+    {}
 
     virtual void HandleTranslationUnit(ASTContext &Context) {
       visitor->TraverseDecl(Context.getTranslationUnitDecl());
