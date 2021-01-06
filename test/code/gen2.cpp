@@ -78,9 +78,15 @@ int main()
 
   for(int N1=100; N1<=5000; N1+=500) {
     for(int N2=100; N2<=5000; N2+=500) {
-      char name[100];
-      sprintf(name, "kernel_%d_%d.cpp", N1, N2);
-      create(name, 100, 100, 100, 100, 100);
+      for(int L1=1; L1<=N1; L1+=800) {
+        for(int L2=5; L2<=N1; L2+=325) {
+          for(int L3=9; L3<=N1; L3+=617) {
+            char name[100];
+            sprintf(name, "kernel_%d_%d_%d_%d_%d.cpp", N1, N2, L1, L2, L3);
+            create(name, N1, N2, L1, L2, L3);
+          }
+        }
+      }
     }
   }
 /*#pragma omp parallel for num_threads(12)
