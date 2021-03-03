@@ -21,8 +21,13 @@ void create_kernel(FILE *fp, int N)
   kernel_code.append("      int k;\n");
   kernel_code.append("      double double_c[N1] = {20.0};\n");
   int k=0;
+  bool a = false, b = false;
   while(N>0 && k<CODE) {
-    if((N&1)==1) kernel_code.append(code[k]);
+    if((N&1)==1) {
+      kernel_code.append(code[k]);
+      if(strstr(code[k], "double_a") != NULL) a = true;
+      if(strstr(code[k], "double_b") != NULL) b = true;
+    }
     N>>=1;
     k++;
   }
@@ -37,18 +42,46 @@ void create_kernel(FILE *fp, int N)
   fprintf(fp, "  double runtime = (t2.tv_sec - t1.tv_sec);\n");
   fprintf(fp, "  runtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;\n");
 #pragma omp critical
-  fprintf(fp, "  printf(\"kernel_%d_target,%%.3f\\n\", runtime);\n\n", num);
+  fprintf(fp, "  printf(\"kernel_%d_parallel,%%.3f\\n\", runtime);\n", num);
   fprintf(fp, "}\n\n");
-  fprintf(fp, "void kernel_%d_target(double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
+  fprintf(fp, "void kernel_%d_parallel_collapse(double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
   fprintf(fp, "  struct timeval t1, t2;\n");
   fprintf(fp, "  gettimeofday(&t1, NULL);\n");
-  fprintf(fp, "#pragma omp target teams distribute parallel for map(double_a[0:N1], double_b[0:N1]) device(dev)\n");
+  fprintf(fp, "#pragma omp parallel for collapse(2)\n");
   fprintf(fp, "%s", kernel_code.c_str());
   fprintf(fp, "  gettimeofday(&t2, NULL);\n");
   fprintf(fp, "  double runtime = (t2.tv_sec - t1.tv_sec);\n");
   fprintf(fp, "  runtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;\n");
 #pragma omp critical
-  fprintf(fp, "  printf(\"kernel_%d_target,%%.3f\\n\", runtime);\n\n", num);
+  fprintf(fp, "  printf(\"kernel_%d_parallel_collapse,%%.3f\\n\", runtime);\n", num);
+  fprintf(fp, "}\n\n");
+  fprintf(fp, "void kernel_%d_target(double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
+  fprintf(fp, "  struct timeval t1, t2;\n");
+  fprintf(fp, "  gettimeofday(&t1, NULL);\n");
+  fprintf(fp, "#pragma omp target teams distribute parallel for ");
+  if(a) fprintf(fp, "map(double_a[0:N1]) ");
+  if(b) fprintf(fp, "map(double_b[0:N1]) ");
+  fprintf(fp, "device(dev)\n");
+  fprintf(fp, "%s", kernel_code.c_str());
+  fprintf(fp, "  gettimeofday(&t2, NULL);\n");
+  fprintf(fp, "  double runtime = (t2.tv_sec - t1.tv_sec);\n");
+  fprintf(fp, "  runtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;\n");
+#pragma omp critical
+  fprintf(fp, "  printf(\"kernel_%d_target,%%.3f\\n\", runtime);\n", num);
+  fprintf(fp, "}\n\n");
+  fprintf(fp, "void kernel_%d_target_collapse(double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
+  fprintf(fp, "  struct timeval t1, t2;\n");
+  fprintf(fp, "  gettimeofday(&t1, NULL);\n");
+  fprintf(fp, "#pragma omp target teams distribute parallel for collapse(2) ");
+  if(a) fprintf(fp, "map(double_a[0:N1]) ");
+  if(b) fprintf(fp, "map(double_b[0:N1]) ");
+  fprintf(fp, "device(dev)\n");
+  fprintf(fp, "%s", kernel_code.c_str());
+  fprintf(fp, "  gettimeofday(&t2, NULL);\n");
+  fprintf(fp, "  double runtime = (t2.tv_sec - t1.tv_sec);\n");
+  fprintf(fp, "  runtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;\n");
+#pragma omp critical
+  fprintf(fp, "  printf(\"kernel_%d_target_collapse,%%.3f\\n\", runtime);\n", num);
   fprintf(fp, "}\n\n");
 }
 
