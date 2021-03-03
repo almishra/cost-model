@@ -33,7 +33,7 @@ void create_kernel(FILE *fp, int N)
   }
   kernel_code.append("    }\n");
   kernel_code.append("  }\n");
-  fprintf(fp, "void kernel_%d_parallel(double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
+  fprintf(fp, "void kernel_%d_parallel(FILE *fp, double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
   fprintf(fp, "  struct timeval t1, t2;\n");
   fprintf(fp, "  gettimeofday(&t1, NULL);\n");
   fprintf(fp, "#pragma omp parallel for \n");
@@ -41,10 +41,13 @@ void create_kernel(FILE *fp, int N)
   fprintf(fp, "  gettimeofday(&t2, NULL);\n");
   fprintf(fp, "  double runtime = (t2.tv_sec - t1.tv_sec);\n");
   fprintf(fp, "  runtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;\n");
-#pragma omp critical
-  fprintf(fp, "  printf(\"kernel_%d_parallel,%%.3f\\n\", runtime);\n", num);
+  fprintf(fp, "#pragma omp critical\n");
+  fprintf(fp, "{\n");
+  fprintf(fp, "  fprintf(fp, \"kernel_%d_parallel,%%.3f\\n\", runtime);\n", num);
+  fprintf(fp, "  fflush(fp);\n");
+  fprintf(fp, "}\n");
   fprintf(fp, "}\n\n");
-  fprintf(fp, "void kernel_%d_parallel_collapse(double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
+  fprintf(fp, "void kernel_%d_parallel_collapse(FILE *fp, double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
   fprintf(fp, "  struct timeval t1, t2;\n");
   fprintf(fp, "  gettimeofday(&t1, NULL);\n");
   fprintf(fp, "#pragma omp parallel for collapse(2)\n");
@@ -52,10 +55,13 @@ void create_kernel(FILE *fp, int N)
   fprintf(fp, "  gettimeofday(&t2, NULL);\n");
   fprintf(fp, "  double runtime = (t2.tv_sec - t1.tv_sec);\n");
   fprintf(fp, "  runtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;\n");
-#pragma omp critical
-  fprintf(fp, "  printf(\"kernel_%d_parallel_collapse,%%.3f\\n\", runtime);\n", num);
+  fprintf(fp, "#pragma omp critical\n");
+  fprintf(fp, "{\n");
+  fprintf(fp, "  fprintf(fp, \"kernel_%d_parallel_collapse,%%.3f\\n\", runtime);\n", num);
+  fprintf(fp, "  fflush(fp);\n");
+  fprintf(fp, "}\n");
   fprintf(fp, "}\n\n");
-  fprintf(fp, "void kernel_%d_target(double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
+  fprintf(fp, "void kernel_%d_target(FILE *fp, double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
   fprintf(fp, "  struct timeval t1, t2;\n");
   fprintf(fp, "  gettimeofday(&t1, NULL);\n");
   fprintf(fp, "#pragma omp target teams distribute parallel for ");
@@ -66,10 +72,13 @@ void create_kernel(FILE *fp, int N)
   fprintf(fp, "  gettimeofday(&t2, NULL);\n");
   fprintf(fp, "  double runtime = (t2.tv_sec - t1.tv_sec);\n");
   fprintf(fp, "  runtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;\n");
-#pragma omp critical
-  fprintf(fp, "  printf(\"kernel_%d_target,%%.3f\\n\", runtime);\n", num);
+  fprintf(fp, "#pragma omp critical\n");
+  fprintf(fp, "{\n");
+  fprintf(fp, "  fprintf(fp, \"kernel_%d_target_%%d,%%.3f\\n\", dev, runtime);\n", num);
+  fprintf(fp, "  fflush(fp);\n");
+  fprintf(fp, "}\n");
   fprintf(fp, "}\n\n");
-  fprintf(fp, "void kernel_%d_target_collapse(double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
+  fprintf(fp, "void kernel_%d_target_collapse(FILE *fp, double double_a[N1], double double_b[N1], int num_dev, int dev) {\n", num);
   fprintf(fp, "  struct timeval t1, t2;\n");
   fprintf(fp, "  gettimeofday(&t1, NULL);\n");
   fprintf(fp, "#pragma omp target teams distribute parallel for collapse(2) ");
@@ -80,8 +89,11 @@ void create_kernel(FILE *fp, int N)
   fprintf(fp, "  gettimeofday(&t2, NULL);\n");
   fprintf(fp, "  double runtime = (t2.tv_sec - t1.tv_sec);\n");
   fprintf(fp, "  runtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;\n");
-#pragma omp critical
-  fprintf(fp, "  printf(\"kernel_%d_target_collapse,%%.3f\\n\", runtime);\n", num);
+  fprintf(fp, "#pragma omp critical\n");
+  fprintf(fp, "{\n");
+  fprintf(fp, "  fprintf(fp, \"kernel_%d_target_collapse_%%d,%%.3f\\n\", dev, runtime);\n", num);
+  fprintf(fp, "  fflush(fp);\n");
+  fprintf(fp, "}\n");
   fprintf(fp, "}\n\n");
 }
 
@@ -93,7 +105,6 @@ void create(char *filename, int N1, int N2, int LIM_1, int LIM_2, int LIM_3)
     return;
   }
   fprintf(fp, "#include <stdio.h>\n");
-  fprintf(fp, "#include <stdlib.h>\n");
   fprintf(fp, "#include <omp.h>\n");
   fprintf(fp, "#include <sys/time.h>\n\n");
   fprintf(fp, "#define N1 %d\n", N1);
@@ -104,25 +115,49 @@ void create(char *filename, int N1, int N2, int LIM_1, int LIM_2, int LIM_3)
   for(int i=0; i<1<<CODE; i++)
     create_kernel(fp, i);
 
-  fprintf(fp, "typedef void (*Kernels) (double a[N1], double b[N1], int num_dev, int dev);\n\n");
+  fprintf(fp, "typedef void (*Kernels) (FILE *fp, double a[N1], double b[N1], int num_dev, int dev);\n\n");
   fprintf(fp, "int main(int argc, char **argv)\n{\n");
   fprintf(fp, "  if(argc < 2) {\n");
-  fprintf(fp, "    printf(\"Need Output log file name\");\n");
-  fprintf(fp, "    exit(-1);\n");
+  fprintf(fp, "    fprintf(stderr, \"Need Output log file name\");\n");
+  fprintf(fp, "    return -1;\n");
+  fprintf(fp, "  }\n");
+  fprintf(fp, "  FILE *fp = fopen(argv[1], \"w+\");\n");
+  fprintf(fp, "  if(fp == NULL) {\n");
+  fprintf(fp, "    fprintf(stderr, \"Error: Unable to create file %%s\\n\", argv[1]);\n");
+  fprintf(fp, "    return -1;\n");
   fprintf(fp, "  }\n");
   fprintf(fp, "  double double_a[N1], double_b[N1];\n");
   fprintf(fp, "  for(int i=0; i<N1; i++) {\n");
   fprintf(fp, "    double_a[i] = 10.0;\n");
   fprintf(fp, "    double_b[i] = 5.0;\n");
   fprintf(fp, "  }\n\n");
-  fprintf(fp, "  Kernels kernel[] =\n");
+  fprintf(fp, "  Kernels kernel_parallel[] =\n");
   fprintf(fp, "  {\n");
   for(int i=0; i<(1<<CODE)-1; i++) {
     fprintf(fp, "    kernel_%d_parallel,\n", i);
+  }
+  fprintf(fp, "    kernel_%d_parallel\n", (1<<CODE)-1);
+  fprintf(fp, "  };\n\n");
+  fprintf(fp, "  Kernels kernel_parallel_collpase[] =\n");
+  fprintf(fp, "  {\n");
+  for(int i=0; i<(1<<CODE)-1; i++) {
+    fprintf(fp, "    kernel_%d_parallel_collapse,\n", i);
+  }
+  fprintf(fp, "    kernel_%d_parallel_collapse\n", (1<<CODE)-1);
+  fprintf(fp, "  };\n\n");
+  fprintf(fp, "  Kernels kernel_target[] =\n");
+  fprintf(fp, "  {\n");
+  for(int i=0; i<(1<<CODE)-1; i++) {
     fprintf(fp, "    kernel_%d_target,\n", i);
   }
-  fprintf(fp, "    kernel_%d_parallel,\n", (1<<CODE)-1);
   fprintf(fp, "    kernel_%d_target\n", (1<<CODE)-1);
+  fprintf(fp, "  };\n\n");
+  fprintf(fp, "  Kernels kernel_target_collapse[] =\n");
+  fprintf(fp, "  {\n");
+  for(int i=0; i<(1<<CODE)-1; i++) {
+    fprintf(fp, "    kernel_%d_target_collapse,\n", i);
+  }
+  fprintf(fp, "    kernel_%d_target_collapse\n", (1<<CODE)-1);
   fprintf(fp, "  };\n\n");
   fprintf(fp, "  int num_dev = omp_get_num_devices();\n");
   fprintf(fp, "  if(num_dev > 0) {\n");
@@ -133,7 +168,10 @@ void create(char *filename, int N1, int N2, int LIM_1, int LIM_2, int LIM_3)
   fprintf(fp, "  }\n");
   fprintf(fp, "#pragma omp parallel for\n");
   fprintf(fp, "  for(int i=0; i<1<<%d; i++)\n", CODE);
-  fprintf(fp, "    kernel[i](double_a, double_b, num_dev, omp_get_thread_num());\n");
+  fprintf(fp, "    kernel_target[i](fp, double_a, double_b, num_dev, omp_get_thread_num());\n");
+  fprintf(fp, "#pragma omp parallel for\n");
+  fprintf(fp, "  for(int i=0; i<1<<%d; i++)\n", CODE);
+  fprintf(fp, "    kernel_target_collapse[i](fp, double_a, double_b, num_dev, omp_get_thread_num());\n");
   fprintf(fp, "\n  return 0;\n}");
 
   fclose(fp);
