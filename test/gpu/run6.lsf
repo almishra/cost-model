@@ -1,0 +1,9 @@
+#!/bin/bash
+#BSUB -W 2:00
+#BSUB -nnodes 1
+#BSUB -P csc401
+#BSUB -o run6.o%J
+#BSUB -J run6
+
+module load cuda/10.1.243
+jsrun -n1 -r1 -a1 -c1 ./run6.sh

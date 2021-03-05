@@ -184,11 +184,11 @@ int main()
       for(int L1=1; L1<=N1; L1+=800) {
         for(int L2=5; L2<=N1; L2+=325) {
           for(int L3=9; L3<=N1; L3+=617) {*/
-  for(int N1=100; N1<=1000; N1+=500) {
-    for(int N2=100; N2<=1000; N2+=500) {
-      for(int L1=1; L1<=N1; L1+=800) {
-        for(int L2=5; L2<=N1; L2+=300) {
-          for(int L3=9; L3<=N1; L3+=300) {
+  for(int N1=100; N1<=10000; N1+=1000) {
+    for(int N2=100; N2<=10000; N2+=1000) {
+      for(int L1=50; L1<=N1; L1+=1000) {
+        for(int L2=50; L2<=N1; L2+=1000) {
+          for(int L3=50; L3<=N1; L3+=1000) {
             char name[100];
             sprintf(name, "kernel_%d_%d_%d_%d_%d.cpp", N1, N2, L1, L2, L3);
             create(name, N1, N2, L1, L2, L3);
