@@ -40,7 +40,7 @@ time_hr = (elapsed_time / 60) / 60
 print(f'---- Training Time : {time_hr:.0f}:{time_min:.0f}:{time_sec:.0f} ----')
 
 runtimes_pred = model.predict(X_test)
-print(f'MAE = {mean_absolute_percentage_error(y_test, runtimes_pred)}')
+print(f'MAE = {mean_absolute_error(y_test, runtimes_pred)}')
 print(f'RMSE = {np.sqrt(mean_squared_error(y_test, runtimes_pred))}')
 print(f'MAPE = {mean_absolute_percentage_error(y_test, runtimes_pred)}')
 print(f'R2 = {r2_score(y_test, runtimes_pred)}')
