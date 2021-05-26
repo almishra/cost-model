@@ -1,0 +1,3 @@
+Kernel,collapse,simd,inner,Iter,VarDecl,refExpr,intLiteral,floatLiteral,mem_to,mem_from,add_sub_int,add_sub_double,mul_double,div_double,assign_int,assign_double,runtime
+main_1100_1100_1100_1100,0,0,0,1100,1101,10915284,3640996,0,2251940544,750646848,3638795,1212198,1212198,0,0,1213298,6.60408
+main_collapse_1100_1100_1100_1100,1,0,0,1210000,1,9905,3304,0,2252155008,750718336,3302,1100,1100,0,0,1101,1.0741
