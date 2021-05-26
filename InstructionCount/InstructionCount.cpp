@@ -210,20 +210,77 @@ class InstructionCountVisitor :
       }
 
       bool found = false;
-      found |= kernel_found<OMPForDirective>(st);
-      found |= kernel_found<OMPParallelForDirective>(st);
+      //found |= kernel_found<OMPForDirective>(st);
+      //found |= kernel_found<OMPParallelForDirective>(st);
+      found |= kernel_found<OMPTargetTeamsDistributeParallelForDirective>(st);
+      found |= kernel_found<OMPTargetTeamsDistributeDirective>(st);
+      //found |= kernel_found<OMPTargetDirective>(st);
+      found |= kernel_found<OMPTeamsDistributeDirective>(st);
 
+      if(found) llvm::errs() << "Kernel Found\n";
+      //st->dump();
+      //llvm::errs() << "////////////////////////////////////////////////////////////////\n";
+      //for(int i=0; i<1000;i++);
       if(found) {
         int id = lastKernel ? lastKernel->getID() + 1 : 1;
         lastKernel = new Kernel(id, st, currentFunction);
         llvm::errs().changeColor(raw_ostream::GREEN);
         llvm::errs() << "INFO: Kernel found at ";
-        st->getBeginLoc().print(llvm::errs(), *SM);
+        //st->getBeginLoc().print(llvm::errs(), *SM);
         llvm::errs() << "\n";
         llvm::errs().changeColor(raw_ostream::WHITE);
 
         insideKernel = true;
         OMPLoopDirective *omp = dyn_cast<OMPLoopDirective>(st);
+        unsigned long total_to = 0;
+        unsigned long total_from = 0;
+        for(auto *M : omp->getClausesOfKind<OMPMapClause>()) {
+//////////////////////////////////////ALOK
+          //llvm::errs() << "Map Clause found\n";
+          /*switch(M->getMapType()) {
+            case OMPC_MAP_to: llvm::errs() << "Map to\n"; break;
+            case OMPC_MAP_tofrom: llvm::errs() << "Map tofrom\n"; break;
+            case OMPC_MAP_from:
+            case OMPC_MAP_alloc:
+            case OMPC_MAP_delete:
+            case OMPC_MAP_release:
+            case OMPC_MAP_unknown:
+                                  break;
+          }*/
+          for(const auto *EI : M->getVarRefs()) {
+            const Stmt *E = (M->getMapLoc().isValid()) ? EI : nullptr;
+            int start=-1, end;
+            for(auto *i : E->children()) {
+              const Stmt *S = i;
+              if(S == NULL) {
+                continue;
+              }
+              if(const IntegerLiteral *I = dyn_cast<IntegerLiteral>(S)) {
+                //I->dump();
+                if(start == -1)
+                  start = I->getValue().getLimitedValue(INT_MAX);
+                else
+                  end = I->getValue().getLimitedValue(INT_MAX);
+                //llvm::errs() << "------------------\n";
+              }
+            }
+
+            if(M->getMapType() == OMPC_MAP_to)
+              total_to += sizeof(double)*(end-start);
+            else if(M->getMapType() == OMPC_MAP_from)
+              total_from += sizeof(double)*(end-start);
+            else if(M->getMapType() == OMPC_MAP_tofrom) {
+              total_to += sizeof(double)*(end-start);
+              total_from += sizeof(double)*(end-start);
+            }
+            //llvm::errs() << "==================\n";
+          }
+          //M->dump();
+        }
+        llvm::errs() << "Total size transferred = " << total_to << "+" << total_from << "\n";
+        lastKernel->setMemTo(total_to);
+        lastKernel->setMemFrom(total_from);
+
         for(unsigned int i = 0; i<omp->getNumClauses(); i++) {
           if(auto collapse = dyn_cast<OMPCollapseClause>(omp->getClause(i))) {
             Expr *ex = dyn_cast<Expr>(collapse->getNumForLoops());
@@ -259,11 +316,13 @@ class InstructionCountVisitor :
         vec.push_back(lastKernel);
         kernel_map[id] = vec;
         //lastKernel->print();
+        //llvm::errs() << "Kernel, Iter, VarDecl, refExpr, intLiteral, floatLiteral, mem_to, mem_from, add_sub_int, add_sub_double, mul_int, mul_double, div_int, div_double, bit_int, bit_double, rel_int, rel_double, logical_int, logical_double, assign_int, assign_double\n";
+        llvm::errs() << "Kernel, Iter, VarDecl, refExpr, intLiteral, floatLiteral, mem_to, mem_from, add_sub_int, add_sub_double, mul_double, div_double, assign_int, assign_double\n";
         lastKernel->dump();
       } else {
         if(insideKernel) {
           int counter = 1;
-          for(int i=0; i<innerFor.size(); i++)
+          for(unsigned int i=0; i<innerFor.size(); i++)
             counter *= innerFor[i].getNumIteration();
           if(counter > 1) counter--;
           
@@ -298,6 +357,11 @@ class PluginInstructionCountAction : public PluginASTAction {
 
     bool ParseArgs(const CompilerInstance &CI, 
                    const std::vector<std::string> &args) {
+//      for (unsigned i = 0, e = args.size(); i != e; ++i) {
+//        if(args[i] == "-debug") {
+//          debug = true;
+//        }
+//      }
       return true;
     }
 };
