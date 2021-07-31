@@ -58,9 +58,9 @@ int main(int argc, char**argv) {
             }
         }
         gettimeofday(&t2, NULL);
-        runtime = (t2.tv_sec - t1.tv_sec);
-        runtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;
-        printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.3f %d\n", N1, M1,(N1-1)*(M1-1),0,31,4,1,8,8,4,5,1,0,0,2,runtime, iter);
+        runtime = (t2.tv_sec - t1.tv_sec) * 1000000.0 ;
+        runtime += (t2.tv_usec - t1.tv_usec);
+        printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.0f\n", N1, M1,(N1-1)*(M1-1),0,31,4,1,8,8,4,5,1,0,0,2,runtime);
 
         gettimeofday(&t1, NULL);
         //#pragma omp target teams distribute parallel for collapse(2) map(Anew[0:M][0:N], A[0:M][0:N])
@@ -70,9 +70,9 @@ int main(int argc, char**argv) {
                 A[i][j] = Anew[i][j];
 
         gettimeofday(&t2, NULL);
-        runtime = (t2.tv_sec - t1.tv_sec);
-        runtime += (t2.tv_usec - t1.tv_usec) / 1000000.0;
-        printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.3f %d\n", N1, M1,(N1-1)*(M1-1),0,6,0,0,0,0,0,0,0,0,0,1,runtime, iter);
+        runtime = (t2.tv_sec - t1.tv_sec) * 1000000.0;
+        runtime += (t2.tv_usec - t1.tv_usec);
+        printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.0f\n", N1, M1,(N1-1)*(M1-1),0,6,0,0,0,0,0,0,0,0,0,1,runtime);
         fflush(stdout);
         iter++;
     }
