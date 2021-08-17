@@ -5,7 +5,7 @@
 #include <string.h>
 #include "cuda_runtime.h"
 
-#define N 3000
+#define N 300
 
 int main(int argc, char **argv)
 {
