@@ -387,12 +387,14 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
 
   struct timeval t1, t2;
   gettimeofday(&t1, NULL);
+  int runtime;
 #pragma omp target teams distribute parallel for map(weights[0:Nparticles])
   for(int x = 0; x < Nparticles; x++) {
     weights[x] = 1/((double)(Nparticles));
   }
   gettimeofday(&t2, NULL);
-  printf("Kernel1,%ld\n", (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec));
+  runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);         
+  printf("particleFilter1,10000000,0,0,0,2,2,0,80000000,80000000,0,0,0,0,0,1,0,1,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
 
   gettimeofday(&t1, NULL);
 #pragma omp target teams distribute parallel for map(arrayX[0:Nparticles], arrayY[0:Nparticles], xe, ye)
@@ -401,7 +403,8 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
     arrayY[x] = ye;
   }
   gettimeofday(&t2, NULL);
-  printf("Kernel2,%ld\n", (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec));
+  runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec); 
+  printf("particleFilter2,10000000,0,0,0,6,0,0,320000016,320000016,0,0,0,0,0,0,0,2,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
 
   int k;
   int indX, indY;
@@ -452,7 +455,8 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
       sumWeights += weights[x];
     }
     gettimeofday(&t2, NULL);
-    printf("Kernel3,%ld\n", (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec));
+    runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);
+    printf("particleFilter3,10000000,0,1,0,3,0,0,160000008,80000000,0,1,0,0,0,0,0,1,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
 
     gettimeofday(&t1, NULL);
 #pragma omp target teams distribute parallel for map(weights[0:Nparticles])
@@ -460,8 +464,9 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
       weights[x] = weights[x]/sumWeights;
     }
     gettimeofday(&t2, NULL);
-    printf("Kernel4,%ld\n", (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec));
+    runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);         
 
+    printf("particleFilter4,10000000,0,0,0,5,0,0,80000000,80000000,0,0,0,0,0,1,0,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
     xe = 0;
     ye = 0;
     // estimate the object location by expected values
@@ -472,7 +477,8 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
       ye += arrayY[x] * weights[x];
     }
     gettimeofday(&t2, NULL);
-    printf("Kernel5,%ld\n", (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec));
+    runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);         
+    printf("particleFilter5,10000000,0,1,0,10,0,0,240000000,240000000,0,2,0,2,0,0,0,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
 
     CDF[0] = weights[0];
     for(x = 1; x < Nparticles; x++) {
@@ -488,7 +494,8 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
       u[x] = u1 + x/((double)(Nparticles));
     }
     gettimeofday(&t2, NULL);
-    printf("Kernel6,%ld\n", (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec));
+    runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);         
+    printf("particleFilter6,10000000,0,0,0,4,1,0,80000000,80000000,0,1,0,0,0,1,0,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
 
 //#pragma omp parallel for shared(CDF, Nparticles, xj, yj, u, arrayX, arrayY)
 #pragma omp parallel for shared(CDF, xj, yj, u, arrayX, arrayY)
@@ -510,7 +517,8 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
       weights[x] = 1/((double)(Nparticles));
     }
     gettimeofday(&t2, NULL);
-    printf("Kernel7,%ld\n", (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec));
+    runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);         
+    printf("particleFilter7,10000000,0,0,0,10,2,0,400000000,400000000,0,0,0,0,0,1,0,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
   }
 }
 
