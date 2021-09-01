@@ -385,6 +385,7 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
   double u[Nparticles];
   int ind[countOnes*Nparticles];
 
+  int outer, inner, reduction, varDecl, refExpr, intLiteral, floatLiteral, memTo, memFrom, addSubInt, addSubDouble, multInt, multDouble, divInt, divDouble, assInt, assDouble;
   struct timeval t1, t2;
   gettimeofday(&t1, NULL);
   int runtime;
@@ -394,17 +395,53 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
   }
   gettimeofday(&t2, NULL);
   runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);         
-  printf("particleFilter1,10000000,0,0,0,2,2,0,80000000,80000000,0,0,0,0,0,1,0,1,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
+  outer = Nparticles;
+  inner = 0;
+  reduction = 1;
+  varDecl = 0;
+  refExpr = 2;
+  intLiteral = 2;
+  floatLiteral = 0;
+  memTo = Nparticles * sizeof(double);
+  memFrom = Nparticles * sizeof(double);
+  addSubInt = 0;
+  addSubDouble = 0;
+  multInt = 0;
+  multDouble = 0;
+  divInt = 0;
+  divDouble = 1;
+  assInt = 0;
+  assDouble = 1;
+  printf("particleFilter1,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.4f\n",
+                          outer, inner, reduction, varDecl, refExpr, intLiteral, floatLiteral, memTo, memFrom, addSubInt, addSubDouble, multInt, multDouble, divInt, divDouble, assInt, assDouble, runtime, (double) (runtime/1000000.0));
 
   gettimeofday(&t1, NULL);
-#pragma omp target teams distribute parallel for map(arrayX[0:Nparticles], arrayY[0:Nparticles], xe, ye)
+#pragma omp target teams distribute parallel for map(arrayX[0:Nparticles], arrayY[0:Nparticles]) map(to: xe, ye)
   for(x = 0; x < Nparticles; x++) {
     arrayX[x] = xe;
     arrayY[x] = ye;
   }
   gettimeofday(&t2, NULL);
   runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec); 
-  printf("particleFilter2,10000000,0,0,0,6,0,0,320000016,320000016,0,0,0,0,0,0,0,2,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
+  outer = Nparticles;
+  inner = 0;
+  reduction = 1;
+  varDecl = 0;
+  refExpr = 6;
+  intLiteral = 0;
+  floatLiteral = 0;
+  memTo = 2 * Nparticles * sizeof(double) + 2 * sizeof(double);
+  memFrom = 2 * Nparticles * sizeof(double);
+  addSubInt = 0;
+  addSubDouble = 0;
+  multInt = 0;
+  multDouble = 0;
+  divInt = 0;
+  divDouble = 0;
+  assInt = 0;
+  assDouble = 2;
+  printf("particleFilter2,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.4f\n",
+                          outer, inner, reduction, varDecl, refExpr, intLiteral, floatLiteral, memTo, memFrom, addSubInt, addSubDouble, multInt, multDouble, divInt, divDouble, assInt, assDouble, runtime, (double) (runtime/1000000.0));
 
   int k;
   int indX, indY;
@@ -456,29 +493,82 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
     }
     gettimeofday(&t2, NULL);
     runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);
-    printf("particleFilter3,10000000,0,1,0,3,0,0,160000008,80000000,0,1,0,0,0,0,0,1,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
+    outer = Nparticles;
+    inner = 0;
+    reduction = 1;
+    varDecl = 0;
+    refExpr = 3;
+    intLiteral = 0;
+    floatLiteral = 0;
+    memTo = Nparticles * sizeof(double) + sizeof(double);
+    memFrom = Nparticles * sizeof(double);
+    addSubInt = 0;
+    addSubDouble = 0;
+    multInt = 0;
+    multDouble = 0;
+    divInt = 0;
+    divDouble = 0;
+    assInt = 0;
+    assDouble = 2;
+    printf("particleFilter3,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.4f\n",
+                            outer, inner, reduction, varDecl, refExpr, intLiteral, floatLiteral, memTo, memFrom, addSubInt, addSubDouble, multInt, multDouble, divInt, divDouble, assInt, assDouble, runtime, (double) (runtime/1000000.0));
 
     gettimeofday(&t1, NULL);
-#pragma omp target teams distribute parallel for map(weights[0:Nparticles])
+#pragma omp target teams distribute parallel for map(weights[0:Nparticles]) map(to:sumWeights)
     for(int x = 0; x < Nparticles; x++) {
       weights[x] = weights[x]/sumWeights;
     }
     gettimeofday(&t2, NULL);
     runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);         
-
-    printf("particleFilter4,10000000,0,0,0,5,0,0,80000000,80000000,0,0,0,0,0,1,0,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
+    outer = Nparticles;
+    inner = 0;
+    reduction = 0;
+    varDecl = 0;
+    refExpr = 5;
+    intLiteral = 0;
+    floatLiteral = 0;
+    memTo = Nparticles * sizeof(double) + sizeof(double);
+    memFrom = Nparticles * sizeof(double);
+    addSubInt = 0;
+    addSubDouble = 0;
+    multInt = 0;
+    multDouble = 0;
+    divInt = 0;
+    divDouble = 1;
+    assInt = 0;
+    assDouble = 1;
+    printf("particleFilter4,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.4f\n",
+                            outer, inner, reduction, varDecl, refExpr, intLiteral, floatLiteral, memTo, memFrom, addSubInt, addSubDouble, multInt, multDouble, divInt, divDouble, assInt, assDouble, runtime, (double) (runtime/1000000.0));
     xe = 0;
     ye = 0;
     // estimate the object location by expected values
     gettimeofday(&t1, NULL);
-#pragma omp target teams distribute parallel for private(x) reduction(+:xe, ye) map(weights[0:Nparticles], arrayX[0:Nparticles], arrayY[0:Nparticles])
+#pragma omp target teams distribute parallel for private(x) reduction(+:xe, ye) map(to:weights[0:Nparticles], arrayX[0:Nparticles], arrayY[0:Nparticles])
     for(x = 0; x < Nparticles; x++) {
       xe += arrayX[x] * weights[x];
       ye += arrayY[x] * weights[x];
     }
     gettimeofday(&t2, NULL);
     runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);         
-    printf("particleFilter5,10000000,0,1,0,10,0,0,240000000,240000000,0,2,0,2,0,0,0,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
+    outer = Nparticles;
+    inner = 0;
+    reduction = 2;
+    varDecl = 0;
+    refExpr = 10;
+    intLiteral = 0;
+    floatLiteral = 0;
+    memTo = 3 * Nparticles * sizeof(double) + 2 * sizeof(double);
+    memFrom = 2 * sizeof(double);
+    addSubInt = 0;
+    addSubDouble = 2;
+    multInt = 0;
+    multDouble = 2;
+    divInt = 0;
+    divDouble = 0;
+    assInt = 0;
+    assDouble = 2;
+    printf("particleFilter5,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.4f\n",
+                            outer, inner, reduction, varDecl, refExpr, intLiteral, floatLiteral, memTo, memFrom, addSubInt, addSubDouble, multInt, multDouble, divInt, divDouble, assInt, assDouble, runtime, (double) (runtime/1000000.0));
 
     CDF[0] = weights[0];
     for(x = 1; x < Nparticles; x++) {
@@ -489,13 +579,31 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
     double u1 = (1/((double)(Nparticles)))*randu(seed, 0);
     gettimeofday(&t1, NULL);
 //#pragma omp target teams distribute parallel for shared(u, u1, Nparticles) private(x) map(u[0:Nparticles])
-#pragma omp target teams distribute parallel for map(u[0:Nparticles])
+#pragma omp target teams distribute parallel for map(u[0:Nparticles]) map(to: u1)
     for(int x = 0; x < Nparticles; x++) {
       u[x] = u1 + x/((double)(Nparticles));
     }
     gettimeofday(&t2, NULL);
     runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);         
-    printf("particleFilter6,10000000,0,0,0,4,1,0,80000000,80000000,0,1,0,0,0,1,0,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
+    outer = Nparticles;
+    inner = 0;
+    reduction = 0;
+    varDecl = 0;
+    refExpr = 4;
+    intLiteral = 1;
+    floatLiteral = 0;
+    memTo = Nparticles * sizeof(double) + sizeof(double);
+    memFrom = Nparticles * sizeof(double);
+    addSubInt = 0;
+    addSubDouble = 1;
+    multInt = 0;
+    multDouble = 0;
+    divInt = 0;
+    divDouble = 1;
+    assInt = 0;
+    assDouble = 1;
+    printf("particleFilter6,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.4f\n",
+                            outer, inner, reduction, varDecl, refExpr, intLiteral, floatLiteral, memTo, memFrom, addSubInt, addSubDouble, multInt, multDouble, divInt, divDouble, assInt, assDouble, runtime, (double) (runtime/1000000.0));
 
 //#pragma omp parallel for shared(CDF, Nparticles, xj, yj, u, arrayX, arrayY)
 #pragma omp parallel for shared(CDF, xj, yj, u, arrayX, arrayY)
@@ -510,7 +618,7 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
 
     gettimeofday(&t1, NULL);
 //#pragma omp target teams distribute parallel for shared(weights, Nparticles) private(x) map(arrayX[0:Nparticles],arrayY[0:Nparticles], xj[0:Nparticles],yj[0:Nparticles],weights[0:Nparticles])
-#pragma omp target teams distribute parallel for map(arrayX[0:Nparticles],arrayY[0:Nparticles], xj[0:Nparticles],yj[0:Nparticles],weights[0:Nparticles])
+#pragma omp target teams distribute parallel for map(arrayX[0:Nparticles],arrayY[0:Nparticles],weights[0:Nparticles]) map(to:xj[0:Nparticles],yj[0:Nparticles])
     for(int x = 0; x < Nparticles; x++) {
       arrayX[x] = xj[x];
       arrayY[x] = yj[x];
@@ -518,7 +626,25 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed)//, int Npa
     }
     gettimeofday(&t2, NULL);
     runtime =  (t2.tv_sec - t1.tv_sec)*1000000 + (t2.tv_usec - t1.tv_usec);         
-    printf("particleFilter7,10000000,0,0,0,10,2,0,400000000,400000000,0,0,0,0,0,1,0,%d,%.4f\n", runtime, (double) (runtime / 1000000.0));
+    outer = Nparticles;
+    inner = 0;
+    reduction = 0;
+    varDecl = 0;
+    refExpr = 10;
+    intLiteral = 2;
+    floatLiteral = 0;
+    memTo = 5 * Nparticles * sizeof(double);
+    memFrom = 3 * Nparticles * sizeof(double);
+    addSubInt = 0;
+    addSubDouble = 0;
+    multInt = 0;
+    multDouble = 0;
+    divInt = 0;
+    divDouble = 1;
+    assInt = 0;
+    assDouble = 3;
+    printf("particleFilter7,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.4f\n",
+                            outer, inner, reduction, varDecl, refExpr, intLiteral, floatLiteral, memTo, memFrom, addSubInt, addSubDouble, multInt, multDouble, divInt, divDouble, assInt, assDouble, runtime, (double) (runtime/1000000.0));
   }
 }
 
