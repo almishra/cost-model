@@ -3,7 +3,7 @@ CC = clang++
 CC_FLAGS = -g -Wall -fopenmp -O2
 GPU_FLAGS = -fopenmp-targets=nvptx64-nvidia-cuda  --cuda-path=$(CUDA_TOOLKIT_ROOT_DIR)
 
-all: check-env bfs bfs_offload
+all: check-env bfs bfs_offload bfs_gcc
 
 check-env:
 #ifndef COMPUTE_CAPABILITY
@@ -18,6 +18,9 @@ bfs: bfs.cpp
 
 bfs_offload: bfs.cpp
 	$(CC) $(CC_FLAGS) $(GPU_FLAGS) -Xopenmp-target -march=sm_37 -DOMP_OFFLOAD bfs.cpp -o bfs_offload
+
+bfs_gcc: bfs.cpp
+	g++ -fopenmp -foffload=nvptx-none  -lm -fno-fast-math -fno-associative-math bfs.cpp -o bfs_gcc
 
 input:
 	cd inputGen;

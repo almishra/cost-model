@@ -21,7 +21,7 @@ struct Node
 void BFSGraph(int argc, char** argv);
 
 void Usage(int argc, char**argv){
-  fprintf(stderr,"Usage: %s <num_threads> <input_file>\n", argv[0]);
+  fprintf(stderr,"Usage: %s <input_file> <output_file>\n", argv[0]);
 }
 ////////////////////////////////////////////////////////////////////////////////
 // Main Program
@@ -29,6 +29,7 @@ void Usage(int argc, char**argv){
 int main( int argc, char** argv) 
 {
   BFSGraph( argc, argv);
+  return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -40,8 +41,9 @@ void BFSGraph( int argc, char** argv)
 
   int edge_list_size = 0;
   char *input_f;
+  char *output_f;
 
-  if(argc!=2){
+  if(argc!=3) {
     Usage(argc, argv);
     exit(0);
   }
@@ -51,6 +53,7 @@ void BFSGraph( int argc, char** argv)
   //gettimeofday(&t1, NULL);
 
   input_f = argv[1];
+  output_f = argv[2];
 
   printf("Reading File\n");
   //Read in Graph from a file
@@ -60,6 +63,11 @@ void BFSGraph( int argc, char** argv)
     return;
   }
 
+  FILE *fp_out = fopen(output_f, "w");
+  if(!fp_out) {
+    printf("Error creating output file\n");
+    return;
+  }
   int source = 0;
 
   fscanf(fp,"%d", &no_of_nodes);
@@ -114,26 +122,24 @@ void BFSGraph( int argc, char** argv)
 
   printf("Start traversing the tree on %d devices\n", num_dev);
   printf("kernel,Outer,Inner,Iter,VarDecl,refExpr,intLiteral,floatLiteral,mem_to,mem_from,add_sub_int,add_sub_double,mul_int,mul_double,div_double,assign_int,assign_double,runtime1,runtime\n");
-#pragma omp parallel for private(runtime, t1, t2, total_out, total_in)
-  //firstprivate(no_of_nodes, h_graph_mask, h_graph_nodes, h_graph_edges, h_graph_visited, h_updating_graph_mask, h_cost, max_edge, total_out, total_in)
-  for(int dev = 0; dev < num_dev; dev++)
-//  int dev = 0;
+  int dev = 0;
+//#pragma omp parallel for private(runtime, t1, t2, total_out, total_in)
+//  for(int dev = 0; dev < num_dev; dev++)
   {
-    printf("Loop started\n");
-
     total_in += sizeof(int) + sizeof(bool)*no_of_nodes + sizeof(Node)*no_of_nodes + sizeof(int)*edge_list_size + sizeof(bool)*no_of_nodes + sizeof(bool)*no_of_nodes + sizeof(int)*no_of_nodes;
     total_out += sizeof(int)*no_of_nodes;
   printf("Total data transfered = %.3lf\n", (total_in + total_out) / 1024 / 1024);
-#pragma omp target enter data map(to: no_of_nodes, h_graph_mask[0:no_of_nodes], h_graph_nodes[0:no_of_nodes], h_graph_edges[0:edge_list_size], h_graph_visited[0:no_of_nodes], h_updating_graph_mask[0:no_of_nodes], h_cost[0:no_of_nodes]) device(dev)
+//#pragma omp target enter data map(to: no_of_nodes, h_graph_mask[0:no_of_nodes], h_graph_nodes[0:no_of_nodes], h_graph_edges[0:edge_list_size], h_graph_visited[0:no_of_nodes], h_updating_graph_mask[0:no_of_nodes], h_cost[0:no_of_nodes]) device(dev)
     {
       bool stop;
       do
       {
         //if no thread changes this value then the loop stops
         stop=false;
-        printf("Starting kernel on device %d\n", dev);
+        int in = sizeof(bool)*no_of_nodes + sizeof(Node)*no_of_nodes +  sizeof(int) * edge_list_size + sizeof(bool) * no_of_nodes + sizeof(bool) * no_of_nodes + sizeof(int)*no_of_nodes;
+        int out = sizeof(bool)*no_of_nodes + sizeof(Node)*no_of_nodes +  sizeof(int) * edge_list_size + sizeof(bool) * no_of_nodes + sizeof(bool) * no_of_nodes + sizeof(int)*no_of_nodes;
         gettimeofday(&t1, NULL);
-#pragma omp target teams distribute parallel for device(dev)
+#pragma omp target teams distribute parallel for device(dev) map(h_graph_mask[0:no_of_nodes], h_graph_nodes[0:no_of_nodes], h_graph_edges[0:edge_list_size], h_graph_visited[0:no_of_nodes], h_updating_graph_mask[0:no_of_nodes], h_cost[0:no_of_nodes])
         for(int tid = 0; tid < no_of_nodes; tid++ ) {
           if (h_graph_mask[tid] == true) { 
             h_graph_mask[tid]=false;
@@ -150,10 +156,12 @@ void BFSGraph( int argc, char** argv)
         runtime = (t2.tv_sec - t1.tv_sec) * 1000000;
         runtime += (t2.tv_usec - t1.tv_usec);
 #pragma omp critical
-        printf("Kernel1_%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.0lf,%.6lf\n", dev, no_of_nodes, max_edge, no_of_nodes, max_edge+1, 10*max_edge+6, max_edge+2, 0,0,0, max_edge+2, 0,0,0,0, max_edge, 0, runtime, runtime / 1000000.0);
+        fprintf(fp_out, "Kernel1_%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.0lf,%.6lf\n", dev, no_of_nodes, 0, 0, max_edge+1, 10*max_edge+6, max_edge+2, 0,in,out, max_edge+2, 0,0,0,0,0, max_edge, 0, runtime, runtime / 1000000.0);
 
         gettimeofday(&t1, NULL);
-#pragma omp target teams distribute parallel for device(dev)
+        in = sizeof(bool)*no_of_nodes + sizeof(bool)*no_of_nodes + sizeof(bool)*no_of_nodes + sizeof(bool);
+        out = sizeof(bool)*no_of_nodes + sizeof(bool)*no_of_nodes + sizeof(bool)*no_of_nodes + sizeof(bool);
+#pragma omp target teams distribute parallel for device(dev) map(h_updating_graph_mask[0:no_of_nodes],h_graph_mask[0:no_of_nodes], h_graph_visited[0:no_of_nodes], stop)
         for(int tid=0; tid< no_of_nodes ; tid++ ) {
           if (h_updating_graph_mask[tid] == true){
             h_graph_mask[tid]=true;
@@ -166,14 +174,14 @@ void BFSGraph( int argc, char** argv)
         runtime = (t2.tv_sec - t1.tv_sec) * 1000000;
         runtime += (t2.tv_usec - t1.tv_usec);
 #pragma omp critical
-        printf("Kernel2_%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.0lf,%.6lf\n", dev, no_of_nodes, max_edge, no_of_nodes,0,9,0,0,0,0,0,0,0,0,0,0,0, runtime, runtime / 1000000.0);
+        fprintf(fp_out, "Kernel2_%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.0lf,%.6lf\n", dev, no_of_nodes, 0, 0,0,9,5,0,in,out,0,0,0,0,0,0,4,0, runtime, runtime / 1000000.0);
 
       } while(stop);
 
     }
 #pragma omp target exit data map(from: h_cost[0:no_of_nodes]) device(dev)
   }
+  fclose(fp_out);
 
- // printf("Total data transfered = %.3lf\n", (total_in + total_out) / 1024 / 1024);
 }
 
