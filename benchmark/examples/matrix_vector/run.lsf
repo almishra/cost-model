@@ -1,0 +1,17 @@
+#!/bin/bash
+#
+#SBATCH --job-name=run1
+#SBATCH --output=run1.o%J
+#SBATCH --ntasks-per-node=24
+#SBATCH --nodes=1
+#SBATCH --time=08:00:00
+#SBATCH -p gpu
+#SBATCH --mail-type=BEGIN,END
+#SBATCH --mail-user=alok.mishra@stonybrook.edu
+
+module load shared
+module unload clang
+module load clang/12.0.0_k80
+
+cd /gpfs/projects/ChapmanGroup/alok/git/cost-model/benchmark/examples/matrix_vector
+./run.sh 0
