@@ -25,8 +25,8 @@ class Kernel {
   long charLiteral;
   long funcCall;
 
-  long mem_to;
-  long mem_from;
+  long long mem_to;
+  long long mem_from;
 
   long add_sub[TYPE_COUNT];
   long mul[TYPE_COUNT];
@@ -167,14 +167,25 @@ class Kernel {
   long getMemFrom() { return mem_from; }
 
   void incrStmt(clang::Stmt *st, int count) {
+    llvm::errs().changeColor(llvm::raw_ostream::YELLOW);
+    //llvm::errs() << "incrStmt\n";
+    llvm::errs().changeColor(llvm::raw_ostream::WHITE);
+    //st->dumpColor();
     TYPE type = NONE;
 
     //TODO : Currently only considering Builtin types. Add cases for other types
+    if(llvm::dyn_cast<clang::BinaryOperator>(st) || 
+       llvm::dyn_cast<clang::UnaryOperator>(st)) {
     const clang::BuiltinType *T;
     if(auto b = llvm::dyn_cast<clang::BinaryOperator>(st))
       T = llvm::dyn_cast<clang::BuiltinType>(b->getType());
     if(auto u = llvm::dyn_cast<clang::UnaryOperator>(st))
       T = llvm::dyn_cast<clang::BuiltinType>(u->getType());
+    auto k = T->getKind();
+    llvm::errs().changeColor(llvm::raw_ostream::YELLOW);
+    //llvm::errs() << "H ";
+    //for(int _i=0; _i<1000000; _i++);
+    llvm::errs().changeColor(llvm::raw_ostream::WHITE);
     switch (T->getKind()) {
       case clang::BuiltinType::Void:
       case clang::BuiltinType::Bool:
@@ -205,6 +216,7 @@ class Kernel {
         break;
       case clang::BuiltinType::Float:
         //type = F32;
+        type = F64;
         break;
       case clang::BuiltinType::Double:
         type = F64;
@@ -253,8 +265,15 @@ class Kernel {
       case clang::BuiltinType::OCLQueue:
       case clang::BuiltinType::OCLReserveID:
       default:
+    llvm::errs().changeColor(llvm::raw_ostream::YELLOW);
+    //llvm::errs() << "default Kind";
+    llvm::errs().changeColor(llvm::raw_ostream::WHITE);
         break;
     }
+    }
+    llvm::errs().changeColor(llvm::raw_ostream::YELLOW);
+    //llvm::errs() << "After getKind\n";
+    llvm::errs().changeColor(llvm::raw_ostream::WHITE);
     switch(st->getStmtClass()) {
       case clang::Stmt::CompoundAssignOperatorClass:
       case clang::Stmt::BinaryOperatorClass: {
@@ -312,7 +331,12 @@ class Kernel {
           case clang::BO_Or: bit[type]+=count; break;
           case clang::BO_LAnd: logical[type]+=count; break;
           case clang::BO_LOr: logical[type]+=count; break;
-          case clang::BO_Assign: assign[type]+=count; break;
+          case clang::BO_Assign: assign[type]+=count; 
+    llvm::errs().changeColor(llvm::raw_ostream::YELLOW);
+    //llvm::errs() << "Incrementing Assign[ " << STR[type] << "] " << count << " times\n";
+    llvm::errs().changeColor(llvm::raw_ostream::WHITE);
+    //st->dumpColor(); 
+                                 break;
           case clang::BO_MulAssign: mul[type]+=count; assign[type]+=count; break;
           case clang::BO_DivAssign: div[type]+=count; assign[type]+=count; break;
           //case clang::BO_RemAssign: rem[type]+=count; assign[type]+=count; break;
@@ -358,13 +382,19 @@ class Kernel {
         }
         break;
       }
-      case clang::Stmt::IntegerLiteralClass: intLiteral+=count; break;
+      case clang::Stmt::IntegerLiteralClass: intLiteral+=count;
+        break;
       case clang::Stmt::FloatingLiteralClass: floatLiteral+=count; break;
       case clang::Stmt::FixedPointLiteralClass: fpLiteral+=count; break;
       case clang::Stmt::CharacterLiteralClass: charLiteral+=count; break;
       case clang::Stmt::CallExprClass: funcCall+=count; break;
       case clang::Stmt::DeclRefExprClass: refExpr+=count; break;
-      case clang::Stmt::DeclStmtClass: varDecl+=count; break;
+      case clang::Stmt::DeclStmtClass: varDecl+=count;
+    //llvm::errs().changeColor(llvm::raw_ostream::YELLOW);
+    //llvm::errs() << "Incrementing varDecl " << count << " times\n";
+    //llvm::errs().changeColor(llvm::raw_ostream::WHITE);
+    //st->dumpColor();
+       break;
       default: break;
     }
   }
@@ -426,8 +456,8 @@ class Kernel {
 */
 
     for(int i=0; i<NONE; i++) llvm::outs() << add_sub[i] << ",";
-    for(int i=1; i<NONE; i++) llvm::outs() << mul[i] << ",";
-    for(int i=1; i<NONE; i++) llvm::outs() << div[i] << ",";
+    for(int i=0; i<NONE; i++) llvm::outs() << mul[i] << ",";
+    for(int i=0; i<NONE; i++) llvm::outs() << div[i] << ",";
     //for(int i=0; i<NONE; i++) llvm::outs() << bit[i] << ",";
     //for(int i=0; i<NONE; i++) llvm::outs() << rel[i] << ",";
     //for(int i=0; i<NONE; i++) llvm::outs() << logical[i] << ",";
