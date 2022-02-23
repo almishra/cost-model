@@ -298,7 +298,7 @@ else
   printf "\033[0;33mCloning LLVM ... \033[0m"
   if [ ! -d $LLVM_SRC ]
   then
-    git clone --depth 1 https://github.com/llvm/llvm-project.git $LLVM_SRC > $MAIN_DIR/.llvm_clone_log 2> $MAIN_DIR/.llvm_clone_error
+    git clone -b release/14.x --depth 1 https://github.com/llvm/llvm-project.git $LLVM_SRC > $MAIN_DIR/.llvm_clone_log 2> $MAIN_DIR/.llvm_clone_error
     ASSERT $? "==== Error in cloning llvm"
 
     # Copy the InstructionCount project to clang example directory
